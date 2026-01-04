@@ -2,15 +2,16 @@ import { CaseData, VoteData, JusticesPresentData, ParsedDataset, JusticeData, Ap
 import { parseCSV } from '../utils/csv';
 import { formatJusticeName } from '../utils/justiceMap';
 
-// Standard Lenczner Slaght Dataset Filenames
-// Using absolute paths to ensure we look at the root of the serving domain
+// Google Cloud Storage Bucket URL
+const GCS_BASE_URL = 'https://storage.googleapis.com/scc-dashboard-dataset-2023/dataset/';
+
 const FILES: Record<string, string> = {
-  cases: '/dataset/Case.csv',
-  votes: '/dataset/Votes.csv',
-  justicesPresent: '/dataset/JusticesPresent.csv',
-  appellants: '/dataset/Appellants.csv', 
-  respondents: '/dataset/Respondents.csv',
-  issues: '/dataset/Issues.csv'
+  cases: GCS_BASE_URL + 'Case.csv',
+  votes: GCS_BASE_URL + 'Votes.csv',
+  justicesPresent: GCS_BASE_URL + 'JusticesPresent.csv',
+  appellants: GCS_BASE_URL + 'Appellants.csv',
+  respondents: GCS_BASE_URL + 'Respondents.csv',
+  issues: GCS_BASE_URL + 'Issues.csv'
 };
 
 export const fetchAllData = async (): Promise<ParsedDataset> => {
@@ -20,7 +21,7 @@ export const fetchAllData = async (): Promise<ParsedDataset> => {
 
   // Capture current environment context
   debugLog.push(`[Environment] Current Page URL: ${window.location.href}`);
-  debugLog.push(`[Environment] User Agent: ${navigator.userAgent}`);
+  debugLog.push(`[Config] Fetching data from GCS Bucket: ${GCS_BASE_URL}`);
 
   try {
     // Fetch all files in parallel
@@ -31,7 +32,7 @@ export const fetchAllData = async (): Promise<ParsedDataset> => {
           const response = await fetch(path);
           const time = (performance.now() - start).toFixed(0);
           
-          const msg = `[${key}] GET ${response.url} -> Status: ${response.status} (${response.statusText}) [${time}ms]`;
+          const msg = `[${key}] GET ${path} -> Status: ${response.status} (${response.statusText}) [${time}ms]`;
           debugLog.push(msg);
 
           if (!response.ok) {
@@ -41,10 +42,10 @@ export const fetchAllData = async (): Promise<ParsedDataset> => {
 
           const text = await response.text();
           
-          // Heuristic check: If response starts with '<', it's likely an HTML 404 page, not a CSV
-          if (text.trim().startsWith('<') || text.trim().toLowerCase().startsWith('<!doctype html')) {
+          // Heuristic check: If response looks like an HTML error page instead of CSV
+          if (text.trim().toLowerCase().startsWith('<!doctype html')) {
              errors.push(`${key} invalid: Server returned HTML (likely 404/Error page) instead of CSV.`);
-             debugLog.push(`[${key}] Content Preview (First 100 chars): ${text.substring(0, 100).replace(/\n/g, ' ')}...`);
+             debugLog.push(`[${key}] Content Preview: ${text.substring(0, 100).replace(/\n/g, ' ')}...`);
              return;
           }
 

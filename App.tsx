@@ -23,6 +23,7 @@ import LandingPage from './components/LandingPage';
 import SubjectMatterTreemap from './components/SubjectMatterTreemap';
 import CitationModal from './components/CitationModal';
 import UserGuideModal from './components/UserGuideModal';
+import ChangelogModal from './components/ChangelogModal';
 
 // Define Court Eras
 type Era = {
@@ -56,6 +57,8 @@ const App: React.FC = () => {
   const [showTerms, setShowTerms] = useState(false);
   const [showCitation, setShowCitation] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
+  const [showBetaWarning, setShowBetaWarning] = useState(true);
 
   const [data, setData] = useState<ParsedDataset>({
     cases: [],
@@ -256,9 +259,13 @@ const App: React.FC = () => {
                 >
                     About
                 </button>
-                <div className="flex-shrink-0 hidden md:flex bg-slate-800/50 p-1 rounded-lg">
+                <button 
+                    onClick={() => setShowChangelog(true)}
+                    className="flex-shrink-0 hidden md:flex bg-slate-800/50 p-1 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer"
+                    title="View Changelog"
+                >
                     <span className="px-3 py-1.5 text-xs font-mono text-slate-400">v1.2.0</span>
-                </div>
+                </button>
             </div>
           </div>
         </div>
@@ -580,7 +587,7 @@ const App: React.FC = () => {
                     How to Cite
                 </button>
              </div>
-        </div>
+         </div>
       </footer>
 
       {/* 5. Global Case Detail / Comparison Modal */}
@@ -657,6 +664,26 @@ const App: React.FC = () => {
 
       {/* 8. User Guide Modal */}
       {showGuide && <UserGuideModal onClose={() => setShowGuide(false)} />}
+
+      {/* 9. Changelog Modal */}
+      {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
+
+      {/* Beta Warning Bar */}
+      {showDashboard && showBetaWarning && (
+        <div className="fixed bottom-0 left-0 right-0 bg-yellow-400 text-yellow-900 px-4 py-3 z-[90] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex items-center justify-between animate-fade-in-up">
+            <div className="max-w-7xl mx-auto flex items-center gap-3 w-full justify-center text-sm font-medium">
+               <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+               <p>Notice: This dashboard is iterative and may contain undiscovered bugs. Please cross-reference all visualizations and data with official Supreme Court of Canada judgments.</p>
+            </div>
+            <button
+                onClick={() => setShowBetaWarning(false)}
+                className="p-1 hover:bg-yellow-500 rounded-full transition-colors flex-shrink-0 ml-4"
+                aria-label="Dismiss warning"
+            >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+      )}
     </div>
   );
 };

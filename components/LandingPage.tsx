@@ -294,7 +294,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                         </div>
                      </div>
                      <p className="mt-2 text-center text-xs text-gray-400 font-mono">
-                         Fig. 2: Sample topology of the McLachlin Court (85% Agreement Threshold)
+                         Fig. 2: Example topology of the McLachlin Court
                      </p>
                 </div>
                 <div className="md:w-1/2">
@@ -471,16 +471,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
              
              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center divide-y md:divide-y-0 md:divide-x divide-blue-800">
                  <div className="p-4">
-                     <div className="text-5xl font-serif font-bold text-scc-gold mb-2">70+</div>
-                     <div className="text-sm font-mono uppercase tracking-widest text-blue-200">Years of History</div>
+                     <div className="text-5xl font-serif font-bold text-scc-gold mb-2">~70</div>
+                     <div className="text-sm font-mono uppercase tracking-widest text-blue-200">years of history</div>
                  </div>
                  <div className="p-4">
-                     <div className="text-5xl font-serif font-bold text-scc-gold mb-2">6,800+</div>
+                     <div className="text-5xl font-serif font-bold text-scc-gold mb-2">6,200+</div>
                      <div className="text-sm font-mono uppercase tracking-widest text-blue-200">Decisions Analyzed</div>
                  </div>
                  <div className="p-4">
-                     <div className="text-5xl font-serif font-bold text-scc-gold mb-2">98%</div>
-                     <div className="text-sm font-mono uppercase tracking-widest text-blue-200">Processing Accuracy</div>
+                     <div className="text-5xl font-serif font-bold text-scc-gold mb-2">65+</div>
+                     <div className="text-sm font-mono uppercase tracking-widest text-blue-200">Coded Variables</div>
                  </div>
              </div>
          </div>

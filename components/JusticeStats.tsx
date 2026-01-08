@@ -154,7 +154,7 @@ const JusticeStats: React.FC<JusticeStatsProps> = ({ justiceName, votes, issues,
           <div className="flex justify-between items-center mb-1">
             <h3 className="text-xl font-serif text-scc-blue font-bold">{justiceName}</h3>
             <span className="px-2 py-1 bg-white border border-slate-200 rounded text-[10px] font-bold uppercase tracking-wider text-slate-500 shadow-sm">
-                Scouting Report
+                Judicial Profile
             </span>
           </div>
           <div className="flex gap-4 text-xs text-slate-500">

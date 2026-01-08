@@ -27,18 +27,31 @@ const SearchBar: React.FC<SearchBarProps> = ({ cases, issues, onSelectCase }) =>
     });
   }, [issues]);
 
+  // Helper to normalize strings for fuzzy search (ignore periods, case, extra spaces)
+  const normalize = (str: string) => {
+    return str.toLowerCase()
+      .replace(/\./g, '') // Remove periods (e.g. "v." -> "v")
+      .replace(/\s+/g, ' ') // Collapse multiple spaces
+      .trim();
+  };
+
   useEffect(() => {
     if (query.length < 2) {
       setResults([]);
       return;
     }
 
-    const lowerQuery = query.toLowerCase();
-    const matches = cases.filter(c => 
-      (c.caseName && c.caseName.toLowerCase().includes(lowerQuery)) ||
-      (c.neutralCitation && c.neutralCitation.toLowerCase().includes(lowerQuery)) ||
-      (c.scrCitation && c.scrCitation.toLowerCase().includes(lowerQuery))
-    ).slice(0, 8); // Limit to 8 results
+    const cleanQuery = normalize(query);
+
+    const matches = cases.filter(c => {
+      const name = normalize(c.caseName || '');
+      const neutral = normalize(c.neutralCitation || '');
+      const scr = normalize(c.scrCitation || '');
+      
+      return name.includes(cleanQuery) || 
+             neutral.includes(cleanQuery) || 
+             scr.includes(cleanQuery);
+    }).slice(0, 8); // Limit to 8 results
 
     setResults(matches);
     setIsOpen(true);

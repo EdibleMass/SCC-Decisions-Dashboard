@@ -44,67 +44,112 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
   const opinionTree = useMemo(() => {
     const getJusticeName = (id: string) => justices.find(j => j.justiceID === id)?.justiceName || `Justice ${id}`;
     
-    // Identify Writers
+    // Identify Main Writers from Case Data Headers
     const majorityWriterId = caseData.majorityWriter;
     const dissentWriterId = caseData.dissentWriter;
 
-    // Buckets
-    const majorityGroup: string[] = [];
-    const dissentGroup: string[] = [];
-    const concurrenceGroup: { writer: string; joiners: string[] }[] = [];
-
-    // Helper to find concurrences: Anyone writing who is NOT the main majority or dissent writer
-    const otherWriters = new Set<string>();
-
+    // 1. Identify Concurrence Writers
+    // Judges who wrote an opinion (2=Alone, 3=Co-authored) but are NOT the main majority or dissent writer.
+    const concurrenceWriters: string[] = [];
     votes.forEach(v => {
-      // Is this person writing?
-      if (v.justiceDecisionWriting === '1') {
-        if (v.justiceID !== majorityWriterId && v.justiceID !== dissentWriterId) {
-            otherWriters.add(v.justiceID);
+      const isWriter = v.justiceDecisionWriting === '2' || v.justiceDecisionWriting === '3';
+      if (isWriter && v.justiceID !== majorityWriterId && v.justiceID !== dissentWriterId) {
+        // Prevent duplicates
+        if (!concurrenceWriters.includes(v.justiceID)) {
+            concurrenceWriters.push(v.justiceID);
         }
       }
     });
 
-    // Populate Joiners
+    // 2. Initialize Buckets
+    const majorityGroup: string[] = [];
+    const dissentGroup: string[] = [];
+    
+    // Map: WriterID -> List of Joiner Names
+    const concurrenceJoiners: Record<string, string[]> = {};
+    concurrenceWriters.forEach(id => { concurrenceJoiners[id] = []; });
+
+    // 3. Sort Judges into Buckets
     votes.forEach(v => {
+      // Skip the writers themselves in the joiner lists (they are headers)
+      if (v.justiceID === majorityWriterId) return;
+      if (v.justiceID === dissentWriterId) return;
+      if (concurrenceWriters.includes(v.justiceID)) return;
+
       const name = getJusticeName(v.justiceID);
-      
-      if (v.justiceWithMajorityResult === '1') {
-        // Voted with Majority
-        if (v.justiceID === majorityWriterId) return; // Already handled as header
-        if (otherWriters.has(v.justiceID)) return; // Handled in Concurrence
-        majorityGroup.push(name);
-      } else if (v.justiceWithMajorityResult === '2') {
-        // Voted with Dissent
-        if (v.justiceID === dissentWriterId) return; // Already handled as header
-        if (otherWriters.has(v.justiceID)) return; // Handled in Concurrence
-        dissentGroup.push(name);
+      const signedOnWith = v.justiceSignedOnWith ? v.justiceSignedOnWith.trim() : '';
+
+      // Logic: Use `justiceSignedOnWith` if available to place the judge
+      if (signedOnWith && signedOnWith !== '0' && signedOnWith !== 'N/A') {
+          if (signedOnWith === majorityWriterId) {
+              majorityGroup.push(name);
+          } else if (signedOnWith === dissentWriterId) {
+              dissentGroup.push(name);
+          } else if (concurrenceJoiners[signedOnWith]) {
+              concurrenceJoiners[signedOnWith].push(name);
+          } else {
+              // Edge Case: Signed on with someone who isn't a recognized writer in our logic?
+              // Fallback to Vote Result.
+              if (v.justiceWithMajorityResult === '1') majorityGroup.push(name);
+              else if (v.justiceWithMajorityResult === '2') dissentGroup.push(name);
+          }
+      } else {
+          // Fallback: If no sign-on data, bucket by Vote Result
+          if (v.justiceWithMajorityResult === '1') majorityGroup.push(name);
+          else if (v.justiceWithMajorityResult === '2') dissentGroup.push(name);
       }
     });
 
-    // Build Concurrence Objects
-    otherWriters.forEach(writerId => {
-       concurrenceGroup.push({
-           writer: getJusticeName(writerId),
-           joiners: [] 
-       });
-    });
+    // 4. Format Concurrence Groups for Render
+    const formattedConcurrences = concurrenceWriters.map(writerId => ({
+        writer: getJusticeName(writerId),
+        joiners: concurrenceJoiners[writerId] || []
+    }));
 
     return {
       majorityWriter: getJusticeName(majorityWriterId),
       dissentWriter: dissentWriterId && dissentWriterId !== '0' ? getJusticeName(dissentWriterId) : null,
       majorityGroup,
       dissentGroup,
-      concurrenceGroup
+      concurrenceGroup: formattedConcurrences
     };
   }, [votes, caseData, justices]);
+
+  // Helper to generate external link (Similar to PrecedentTracker logic)
+  const getExternalLink = (c: CaseData) => {
+    const cleanDocket = c.docketID ? c.docketID.trim() : '';
+    if (cleanDocket && /^\d{5}$/.test(cleanDocket)) {
+        return `https://decisions.scc-csc.ca/scc-csc/en/d/s/index.do?cont=&ref=${cleanDocket}`;
+    }
+
+    let query = c.caseName;
+    if (c.neutralCitation && c.neutralCitation.trim()) {
+        query = `"${c.neutralCitation}"`;
+    } else if (c.scrCitation && c.scrCitation.trim()) {
+        query = `"${c.scrCitation}"`;
+    } else {
+        query = `"${c.caseName}"`;
+    }
+    
+    return `https://www.canlii.org/en/#search/text=${encodeURIComponent(query)}`;
+  };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-white w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl overflow-y-auto relative flex flex-col">
         
-        {/* Comparison Trigger (Top Right) */}
-        <div className="absolute top-4 right-16 z-10">
+        {/* Buttons (Compare + Read Case) Top Right */}
+        <div className="absolute top-4 right-16 z-10 flex gap-3">
+            <a 
+                href={getExternalLink(caseData)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-scc-blue border border-slate-300 hover:border-scc-blue px-4 py-2.5 rounded-lg shadow-sm text-sm font-bold transition-all transform hover:-translate-y-0.5"
+                title="Read full judgment on SCC or CanLII"
+            >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                <span className="hidden sm:inline">Read Case</span>
+            </a>
             <button 
                 onClick={onCompare}
                 className="flex items-center gap-2 bg-scc-blue hover:bg-blue-900 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-bold transition-all transform hover:-translate-y-0.5"
@@ -194,6 +239,16 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
             <div className="lg:col-span-2">
                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-slate-100 pb-2">Opinion Tree</h3>
                  
+                 {/* Disclaimer for data inaccuracies */}
+                 <div className="mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-sm flex items-start gap-3">
+                    <svg className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-xs text-yellow-800 leading-snug">
+                        <strong>Notice:</strong> Certain justices may be incorrectly listed as "Concurring" instead of "Majority" (and vice versa) due to a known bug. Please check the relevant SCC page (via the "Read Case" button) to verify exact alignments.
+                    </p>
+                 </div>
+
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-0 md:divide-x divide-slate-100 h-full">
                     
                     {/* Column 1: Majority */}
@@ -232,10 +287,25 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
                              <div className="space-y-4">
                                  {opinionTree.concurrenceGroup.map((conc, idx) => (
                                      <div key={idx} className="bg-yellow-50 p-3 rounded-lg border border-yellow-100">
-                                         <span className="text-[10px] text-yellow-700 uppercase block mb-1">Separate Reasons</span>
-                                         <div className="font-serif font-semibold text-slate-800 leading-snug">
-                                             {conc.writer}
+                                         <div className="mb-2">
+                                            <span className="text-[10px] text-yellow-700 uppercase block mb-1">Written By</span>
+                                            <div className="font-serif font-semibold text-slate-800 leading-snug">
+                                                {conc.writer}
+                                            </div>
                                          </div>
+                                         
+                                         {conc.joiners.length > 0 && (
+                                            <div>
+                                                <span className="text-[10px] text-yellow-700 uppercase block mb-1">Joined By</span>
+                                                <ul className="space-y-1">
+                                                    {conc.joiners.map((name, i) => (
+                                                        <li key={i} className="text-sm text-slate-600 border-l-2 border-yellow-200 pl-2">
+                                                            {name}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                         )}
                                      </div>
                                  ))}
                              </div>

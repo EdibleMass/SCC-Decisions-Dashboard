@@ -46,6 +46,7 @@ export interface VoteData {
   justiceDecisionWriting: string;
   individualVoteDirection: string;
   justiceWithMajorityResult: string; // 1 = Majority, 2 = Dissent
+  justiceSignedOnWith: string; // ID of the justice this vote supports
   primaryCaseID: string;
 }
 

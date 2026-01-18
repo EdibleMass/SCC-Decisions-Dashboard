@@ -19,17 +19,32 @@ const COLORS = {
 
 const JusticeStats: React.FC<JusticeStatsProps> = ({ justiceName, votes, issues, cases }) => {
   
+  // 0. Deduplicate Votes
+  // The dataset contains multiple rows per justice per case if there are multiple legal issues.
+  // We must flatten this to one vote per case to avoid inflating statistics.
+  const uniqueVotes = useMemo(() => {
+    const seenCases = new Set<string>();
+    return votes.filter(v => {
+        if (seenCases.has(v.primaryCaseID)) return false;
+        seenCases.add(v.primaryCaseID);
+        return true;
+    });
+  }, [votes]);
+
   // 1. Basic Vote Record
-  const totalVotes = votes.length;
-  const majorityVotes = votes.filter(v => v.justiceWithMajorityResult === VoteResult.Majority).length;
+  const totalVotes = uniqueVotes.length;
+  const majorityVotes = uniqueVotes.filter(v => v.justiceWithMajorityResult === VoteResult.Majority).length;
   
   // 2. Ideological Compass (2D)
   const ideologyStats = useMemo(() => {
-    // Map Case to Issue Area
-    const caseIssueMap = new Map<string, string>();
+    // Map Case to Set of Issue Areas to capture multi-issue cases
+    const caseIssueMap = new Map<string, Set<string>>();
     issues.forEach(i => {
-        if(i.primaryCaseID && i.issueAreaCan) {
-            caseIssueMap.set(i.primaryCaseID, i.issueAreaCan.trim());
+        if (i.primaryCaseID && i.issueAreaCan) {
+            if (!caseIssueMap.has(i.primaryCaseID)) {
+                caseIssueMap.set(i.primaryCaseID, new Set());
+            }
+            caseIssueMap.get(i.primaryCaseID)?.add(i.issueAreaCan.trim());
         }
     });
 
@@ -39,14 +54,19 @@ const JusticeStats: React.FC<JusticeStatsProps> = ({ justiceName, votes, issues,
     let econTotal = 0;
     let econScore = 0; // Sum of (-1 for Pro-Indiv, +1 for Pro-Business)
 
-    votes.forEach(v => {
-        const area = caseIssueMap.get(v.primaryCaseID);
+    uniqueVotes.forEach(v => {
+        const areas = caseIssueMap.get(v.primaryCaseID);
+        if (!areas) return;
+
         const direction = v.individualVoteDirection; // 1=Cons, 2=Lib
 
         // Y-Axis: Civil Liberties & Criminal (Pro-State vs Pro-Accused)
         // 1=Conservative (Pro-State), 2=Liberal (Pro-Accused)
         // Criminal(8), Civil Rights(5), Immigration(3)
-        if (['8', '5', '3'].includes(area || '')) {
+        // Check if ANY of the case's issues fall into this bucket
+        const isCivil = areas.has('8') || areas.has('5') || areas.has('3');
+        
+        if (isCivil) {
             if (direction === '1') { civilScore += 1; civilTotal++; }
             if (direction === '2') { civilScore -= 1; civilTotal++; }
         }
@@ -54,7 +74,10 @@ const JusticeStats: React.FC<JusticeStatsProps> = ({ justiceName, votes, issues,
         // X-Axis: Economic (Pro-Business vs Pro-Individual)
         // 1=Conservative (Pro-Business), 2=Liberal (Pro-Individual)
         // Commercial(6), Contracts(7), IP(12), Labour(14), Property(16), Tax(18), Torts(19)
-        if (['6', '7', '12', '14', '16', '18', '19'].includes(area || '')) {
+        const econCodes = ['6', '7', '12', '14', '16', '18', '19'];
+        const isEcon = econCodes.some(code => areas.has(code));
+
+        if (isEcon) {
             if (direction === '1') { econScore += 1; econTotal++; }
             if (direction === '2') { econScore -= 1; econTotal++; }
         }
@@ -64,7 +87,7 @@ const JusticeStats: React.FC<JusticeStatsProps> = ({ justiceName, votes, issues,
     const xVal = econTotal > 0 ? econScore / econTotal : 0;   // -1 to 1
 
     return { x: xVal, y: yVal, hasData: civilTotal > 0 || econTotal > 0 };
-  }, [votes, issues]);
+  }, [uniqueVotes, issues]);
 
   // 3. Swing Vote Rating
   const swingStats = useMemo(() => {
@@ -77,7 +100,7 @@ const JusticeStats: React.FC<JusticeStatsProps> = ({ justiceName, votes, issues,
     let splitCases = 0;
     let majorityInSplit = 0;
 
-    votes.forEach(v => {
+    uniqueVotes.forEach(v => {
         const isUnanimous = caseMap.get(v.primaryCaseID);
         if (isUnanimous === false) {
             splitCases++;
@@ -91,7 +114,7 @@ const JusticeStats: React.FC<JusticeStatsProps> = ({ justiceName, votes, issues,
         rating: splitCases > 0 ? (majorityInSplit / splitCases) * 100 : 0,
         totalSplit: splitCases
     };
-  }, [votes, cases]);
+  }, [uniqueVotes, cases]);
 
   // 4. Writing Profile
   const writingStats = useMemo(() => {
@@ -100,7 +123,7 @@ const JusticeStats: React.FC<JusticeStatsProps> = ({ justiceName, votes, issues,
     let concurrenceAuthor = 0;
     let silent = 0;
 
-    votes.forEach(v => {
+    uniqueVotes.forEach(v => {
         const wrote = v.justiceDecisionWriting === '2' || v.justiceDecisionWriting === '3';
         const type = v.individualVoteType;
 
@@ -121,23 +144,34 @@ const JusticeStats: React.FC<JusticeStatsProps> = ({ justiceName, votes, issues,
         { name: 'Silent/Joined', value: silent, color: COLORS.silent },
     ].filter(d => d.value > 0);
 
-    return { data, total: votes.length };
-  }, [votes]);
+    return { data, total: uniqueVotes.length };
+  }, [uniqueVotes]);
 
   // 5. Top Issue Areas
   const topIssues = useMemo(() => {
-    if (votes.length === 0 || issues.length === 0) return [];
-    const caseToArea = new Map<string, string>();
+    if (uniqueVotes.length === 0 || issues.length === 0) return [];
+    
+    // Map Case -> Set<Issue> to capture all issues for a case
+    const caseToAreas = new Map<string, Set<string>>();
     issues.forEach(i => {
       if (i.primaryCaseID && i.issueAreaCan) {
-        caseToArea.set(i.primaryCaseID, i.issueAreaCan.trim());
+         if (!caseToAreas.has(i.primaryCaseID)) {
+             caseToAreas.set(i.primaryCaseID, new Set());
+         }
+         caseToAreas.get(i.primaryCaseID)?.add(i.issueAreaCan.trim());
       }
     });
+
     const counts = new Map<string, number>();
-    votes.forEach(v => {
-      const code = caseToArea.get(v.primaryCaseID);
-      if (code) counts.set(code, (counts.get(code) || 0) + 1);
+    uniqueVotes.forEach(v => {
+      const areas = caseToAreas.get(v.primaryCaseID);
+      if (areas) {
+          areas.forEach(code => {
+              counts.set(code, (counts.get(code) || 0) + 1);
+          });
+      }
     });
+    
     return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
@@ -145,7 +179,7 @@ const JusticeStats: React.FC<JusticeStatsProps> = ({ justiceName, votes, issues,
         name: ISSUE_AREAS[code] || `Area ${code}`,
         count
       }));
-  }, [votes, issues]);
+  }, [uniqueVotes, issues]);
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden flex flex-col h-full">

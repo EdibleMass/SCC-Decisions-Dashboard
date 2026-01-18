@@ -9,7 +9,12 @@ const PrecedentTracker: React.FC<PrecedentTrackerProps> = ({ cases }) => {
   const precedentCases = useMemo(() => {
     return cases
       .filter(c => c.precedentOverrule && c.precedentOverrule.trim() === '1')
-      .sort((a, b) => (b.dateDecisionGiven || '').localeCompare(a.dateDecisionGiven || ''));
+      .sort((a, b) => {
+          // Robust date sorting (Most Recent first)
+          const dateA = new Date(a.dateDecisionGiven || 0).getTime();
+          const dateB = new Date(b.dateDecisionGiven || 0).getTime();
+          return dateB - dateA;
+      });
   }, [cases]);
 
   const getSccLink = (c: CaseData) => {

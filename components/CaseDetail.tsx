@@ -1,19 +1,21 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { CaseData, VoteData, JusticeData } from '../types';
-import { PROVINCE_MAP } from '../utils/constants';
+import { CaseData, VoteData, JusticeData, IssueData } from '../types';
+import { PROVINCE_MAP, ISSUE_AREAS } from '../utils/constants';
 import CaseTimeline from './CaseTimeline';
 
 interface CaseDetailProps {
   caseData: CaseData;
   votes: VoteData[];
+  issues: IssueData[];
   justices: JusticeData[];
   onClose: () => void;
   onCompare: () => void; // Trigger for comparison mode
 }
 
-const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onClose, onCompare }) => {
-  
+const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, issues, justices, onClose, onCompare }) => {
+  const [activeTab, setActiveTab] = useState<number>(0);
+
   // 1. Determine Outcome Pill
   const getOutcome = (disposition: string) => {
     const d = disposition.trim();
@@ -25,10 +27,51 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
   const outcome = getOutcome(caseData.caseDispositionCan);
   const provinceName = PROVINCE_MAP[caseData.provinceOfOrigin.trim()] || 'Unknown Jurisdiction';
 
-  // 2. Process Votes for Donut
+  // 2. Identify Unique Issues
+  // Group votes by issueID.
+  const issueGroups = useMemo(() => {
+    const groups = new Map<string, VoteData[]>();
+    
+    // Sort votes to ensure consistent order if data is messy
+    // We assume votes with same issueID belong together.
+    // If issueID is missing (older data?), fallback to grouping by caseID (single group)
+    votes.forEach(v => {
+        const key = v.issueID || 'default';
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(v);
+    });
+
+    // Convert to array and try to link with IssueData for names
+    return Array.from(groups.entries()).map(([key, groupVotes]) => {
+        // Find corresponding issue metadata
+        const metadata = issues.find(i => i.issueID === key);
+        let label = `Issue ${key}`;
+        let subLabel = '';
+
+        if (metadata) {
+            if (metadata.caseIssueID) label = `Issue ${metadata.caseIssueID}`;
+            if (metadata.issueAreaCan) subLabel = ISSUE_AREAS[metadata.issueAreaCan.trim()] || '';
+        } else if (key === 'default') {
+            label = "Primary Issue";
+        }
+
+        return {
+            id: key,
+            label,
+            subLabel,
+            votes: groupVotes
+        };
+    }).sort((a, b) => a.label.localeCompare(b.label)); // Sort by "Issue 1", "Issue 2"
+  }, [votes, issues]);
+
+  // 3. Select Active Votes based on Tab
+  const activeIssue = issueGroups[activeTab] || issueGroups[0];
+  const activeVotes = activeIssue ? activeIssue.votes : [];
+
+  // 4. Process Votes for Donut (Active Issue Only)
   const voteStats = useMemo(() => {
-    const majority = votes.filter(v => v.justiceWithMajorityResult === '1').length;
-    const dissent = votes.filter(v => v.justiceWithMajorityResult === '2').length;
+    const majority = activeVotes.filter(v => v.justiceWithMajorityResult === '1').length;
+    const dissent = activeVotes.filter(v => v.justiceWithMajorityResult === '2').length;
     return {
       majority,
       dissent,
@@ -38,28 +81,37 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
         { name: 'Dissent', value: dissent, color: '#ef4444' }
       ]
     };
-  }, [votes]);
+  }, [activeVotes]);
 
-  // 3. Process Opinion Tree
+  // 5. Process Opinion Tree (Active Issue Only)
   const opinionTree = useMemo(() => {
     const getJusticeName = (id: string) => justices.find(j => j.justiceID === id)?.justiceName || `Justice ${id}`;
     
     // Identify Main Writers from Case Data Headers
-    const majorityWriterId = caseData.majorityWriter;
-    const dissentWriterId = caseData.dissentWriter;
+    // NOTE: The main headers (majorityWriter/dissentWriter) in CaseData usually refer to the FIRST issue 
+    // or the "Main" judgment. For split issues, this might be slightly inaccurate if writers differ per issue.
+    // However, we can infer writers from the vote data itself: `justiceDecisionWriting`
+    
+    // 1=No Opinion, 2=Wrote Opinion Alone, 3=Co-authored
+    // Vote Type: 1=Maj, 2=Diss, 3=Conc
+    
+    // Determine writers purely from vote data for this specific issue to be accurate
+    let majorityWriters: string[] = [];
+    let dissentWriters: string[] = [];
+    let concurrenceWriters: string[] = [];
 
-    // 1. Identify Concurrence Writers
-    // Judges who wrote an opinion (2=Alone, 3=Co-authored) but are NOT the main majority or dissent writer.
-    const concurrenceWriters: string[] = [];
-    votes.forEach(v => {
-      const isWriter = v.justiceDecisionWriting === '2' || v.justiceDecisionWriting === '3';
-      if (isWriter && v.justiceID !== majorityWriterId && v.justiceID !== dissentWriterId) {
-        // Prevent duplicates
-        if (!concurrenceWriters.includes(v.justiceID)) {
-            concurrenceWriters.push(v.justiceID);
+    activeVotes.forEach(v => {
+        const wrote = v.justiceDecisionWriting === '2' || v.justiceDecisionWriting === '3';
+        if (wrote) {
+            if (v.individualVoteType === '1' || v.individualVoteType === '4') majorityWriters.push(v.justiceID); // 1=Maj, 4=Judgment of Court
+            else if (v.individualVoteType === '2') dissentWriters.push(v.justiceID);
+            else if (v.individualVoteType === '3') concurrenceWriters.push(v.justiceID); // 3=Reg Conc, also check Special Conc
         }
-      }
     });
+
+    // Fallback: If no writers found in votes (data gap), use headers if on Issue 1
+    if (majorityWriters.length === 0 && activeTab === 0 && caseData.majorityWriter) majorityWriters.push(caseData.majorityWriter);
+    if (dissentWriters.length === 0 && activeTab === 0 && caseData.dissentWriter && caseData.dissentWriter !== '0') dissentWriters.push(caseData.dissentWriter);
 
     // 2. Initialize Buckets
     const majorityGroup: string[] = [];
@@ -70,10 +122,10 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
     concurrenceWriters.forEach(id => { concurrenceJoiners[id] = []; });
 
     // 3. Sort Judges into Buckets
-    votes.forEach(v => {
+    activeVotes.forEach(v => {
       // Skip the writers themselves in the joiner lists (they are headers)
-      if (v.justiceID === majorityWriterId) return;
-      if (v.justiceID === dissentWriterId) return;
+      if (majorityWriters.includes(v.justiceID)) return;
+      if (dissentWriters.includes(v.justiceID)) return;
       if (concurrenceWriters.includes(v.justiceID)) return;
 
       const name = getJusticeName(v.justiceID);
@@ -81,15 +133,14 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
 
       // Logic: Use `justiceSignedOnWith` if available to place the judge
       if (signedOnWith && signedOnWith !== '0' && signedOnWith !== 'N/A') {
-          if (signedOnWith === majorityWriterId) {
+          if (majorityWriters.includes(signedOnWith)) {
               majorityGroup.push(name);
-          } else if (signedOnWith === dissentWriterId) {
+          } else if (dissentWriters.includes(signedOnWith)) {
               dissentGroup.push(name);
           } else if (concurrenceJoiners[signedOnWith]) {
               concurrenceJoiners[signedOnWith].push(name);
           } else {
-              // Edge Case: Signed on with someone who isn't a recognized writer in our logic?
-              // Fallback to Vote Result.
+              // Fallback
               if (v.justiceWithMajorityResult === '1') majorityGroup.push(name);
               else if (v.justiceWithMajorityResult === '2') dissentGroup.push(name);
           }
@@ -100,22 +151,20 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
       }
     });
 
-    // 4. Format Concurrence Groups for Render
-    const formattedConcurrences = concurrenceWriters.map(writerId => ({
-        writer: getJusticeName(writerId),
-        joiners: concurrenceJoiners[writerId] || []
-    }));
-
+    // 4. Format Output
     return {
-      majorityWriter: getJusticeName(majorityWriterId),
-      dissentWriter: dissentWriterId && dissentWriterId !== '0' ? getJusticeName(dissentWriterId) : null,
+      majorityWriters: majorityWriters.map(getJusticeName),
+      dissentWriters: dissentWriters.map(getJusticeName),
       majorityGroup,
       dissentGroup,
-      concurrenceGroup: formattedConcurrences
+      concurrenceGroup: concurrenceWriters.map(writerId => ({
+        writer: getJusticeName(writerId),
+        joiners: concurrenceJoiners[writerId] || []
+      }))
     };
-  }, [votes, caseData, justices]);
+  }, [activeVotes, caseData, justices, activeTab]);
 
-  // Helper to generate external link (Similar to PrecedentTracker logic)
+  // Helper to generate external link
   const getExternalLink = (c: CaseData) => {
     const cleanDocket = c.docketID ? c.docketID.trim() : '';
     if (cleanDocket && /^\d{5}$/.test(cleanDocket)) {
@@ -136,7 +185,7 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl overflow-y-auto relative flex flex-col">
+      <div className="bg-white w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl relative flex flex-col overflow-hidden">
         
         {/* Buttons (Compare + Read Case) Top Right */}
         <div className="absolute top-4 right-16 z-10 flex gap-3">
@@ -166,7 +215,7 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
 
-        {/* A. HERO HEADER */}
+        {/* A. HERO HEADER - Fixed */}
         <div className="p-8 border-b border-slate-100 flex-shrink-0">
             <div className="flex flex-col md:flex-row md:items-center gap-4 mb-3">
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${outcome.color}`}>
@@ -191,11 +240,38 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
             </div>
         </div>
 
-        <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12 overflow-y-auto">
+        {/* B. ISSUE TABS (IF MULTIPLE) - Fixed */}
+        {issueGroups.length > 1 && (
+            <div className="px-8 pt-4 bg-slate-50 border-b border-slate-100 flex gap-2 overflow-x-auto flex-shrink-0 z-20">
+                {issueGroups.map((group, idx) => (
+                    <button
+                        key={group.id}
+                        onClick={() => setActiveTab(idx)}
+                        className={`px-4 py-2 text-sm font-bold rounded-t-lg transition-colors border-t border-x ${
+                            activeTab === idx 
+                            ? 'bg-white text-scc-blue border-slate-200 border-b-transparent shadow-sm translate-y-px' 
+                            : 'bg-transparent text-gray-400 border-transparent hover:text-gray-600'
+                        }`}
+                    >
+                        <span className="uppercase tracking-wider">{group.label}</span>
+                        {group.subLabel && <span className="ml-2 font-normal text-xs opacity-75 hidden sm:inline">| {group.subLabel}</span>}
+                    </button>
+                ))}
+            </div>
+        )}
+
+        {/* Content Body - Scrollable */}
+        <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12 flex-grow overflow-y-auto min-h-0 bg-white">
             
-            {/* B. VOTE RING */}
+            {/* C. VOTE RING */}
             <div className="lg:col-span-1 flex flex-col items-center justify-center p-6 bg-slate-50 rounded-xl border border-slate-100 h-fit">
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">The Decision</h3>
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">The Decision</h3>
+                {issueGroups.length > 1 && (
+                    <span className="text-xs font-bold text-scc-blue mb-4 bg-blue-50 px-2 py-1 rounded">
+                        {issueGroups[activeTab].label}
+                    </span>
+                )}
+                
                 <div className="relative w-48 h-48">
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
@@ -235,20 +311,17 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
                 </div>
             </div>
 
-            {/* C. OPINION TREE */}
+            {/* D. OPINION TREE */}
             <div className="lg:col-span-2">
-                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-slate-100 pb-2">Opinion Tree</h3>
-                 
-                 {/* Disclaimer for data inaccuracies */}
-                 <div className="mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-sm flex items-start gap-3">
-                    <svg className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    <p className="text-xs text-yellow-800 leading-snug">
-                        <strong>Notice:</strong> Certain justices may be incorrectly listed as "Concurring" instead of "Majority" (and vice versa) due to a known bug. Please check the relevant SCC page (via the "Read Case" button) to verify exact alignments.
-                    </p>
+                 <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-2">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Opinion Tree</h3>
+                    {issueGroups[activeTab].subLabel && (
+                        <span className="text-xs font-bold text-scc-blue bg-blue-50 px-2 py-1 rounded">
+                            {issueGroups[activeTab].subLabel}
+                        </span>
+                    )}
                  </div>
-
+                 
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-0 md:divide-x divide-slate-100 h-full">
                     
                     {/* Column 1: Majority */}
@@ -259,9 +332,15 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
                         </div>
                         <div className="mb-4">
                             <span className="text-[10px] text-gray-400 uppercase block mb-1">Written By</span>
-                            <div className="font-serif font-bold text-lg text-slate-800 leading-snug">
-                                {opinionTree.majorityWriter}
-                            </div>
+                            {opinionTree.majorityWriters.length > 0 ? (
+                                opinionTree.majorityWriters.map((writer, i) => (
+                                    <div key={i} className="font-serif font-bold text-lg text-slate-800 leading-snug mb-1">
+                                        {writer}
+                                    </div>
+                                ))
+                            ) : (
+                                <span className="text-sm text-gray-400 italic">Unspecified / Per Curiam</span>
+                            )}
                         </div>
                         {opinionTree.majorityGroup.length > 0 && (
                             <div>
@@ -322,14 +401,18 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
                              <div className="w-2 h-2 rounded-full bg-[#ef4444]"></div>
                              <span className="text-sm font-bold text-[#ef4444] uppercase">Dissent</span>
                         </div>
-                        {opinionTree.dissentWriter ? (
+                        {opinionTree.dissentWriters.length > 0 || opinionTree.dissentGroup.length > 0 ? (
                             <>
-                                <div className="mb-4">
-                                    <span className="text-[10px] text-gray-400 uppercase block mb-1">Written By</span>
-                                    <div className="font-serif font-bold text-lg text-slate-800 leading-snug">
-                                        {opinionTree.dissentWriter}
+                                {opinionTree.dissentWriters.length > 0 && (
+                                    <div className="mb-4">
+                                        <span className="text-[10px] text-gray-400 uppercase block mb-1">Written By</span>
+                                        {opinionTree.dissentWriters.map((writer, i) => (
+                                            <div key={i} className="font-serif font-bold text-lg text-slate-800 leading-snug mb-1">
+                                                {writer}
+                                            </div>
+                                        ))}
                                     </div>
-                                </div>
+                                )}
                                 {opinionTree.dissentGroup.length > 0 && (
                                     <div>
                                         <span className="text-[10px] text-gray-400 uppercase block mb-1">Joined By</span>
@@ -345,7 +428,7 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, justices, onCl
                             </>
                         ) : (
                             <div className="text-xs text-gray-400 italic py-4">
-                                Unanimous decision.
+                                Unanimous on this issue.
                             </div>
                         )}
                     </div>

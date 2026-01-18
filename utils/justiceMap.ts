@@ -1,3 +1,4 @@
+
 export const JUSTICE_NAME_MAP: Record<string, string> = {
   // Recent / Current
   "RWagner": "Richard Wagner",
@@ -9,11 +10,14 @@ export const JUSTICE_NAME_MAP: Record<string, string> = {
   "AKarakatsanis": "Andromache Karakatsanis",
   "CGascon": "Clément Gascon",
   "SCote": "Suzanne Côté",
+  "SCôté": "Suzanne Côté", // Handle accented variant in raw data
   "RBrown": "Russell Brown",
   "MRowe": "Malcolm Rowe",
   "SMartin": "Sheilah Martin",
   "NKasirer": "Nicholas Kasirer",
   "MJamal": "Mahmud Jamal",
+  "mjamal": "Mahmud Jamal", // Handle lowercase variant in raw data
+  "Mjamal": "Mahmud Jamal",
   "MOBonsawin": "Michelle O'Bonsawin",
   "MOBonsu": "Michelle O'Bonsawin",
   "MRothstein": "Marshall Rothstein",

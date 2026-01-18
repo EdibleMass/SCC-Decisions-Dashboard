@@ -6,6 +6,18 @@ interface ChangelogModalProps {
 
 const ChangelogModal: React.FC<ChangelogModalProps> = ({ onClose }) => {
   const changes = [
+    {
+      version: "v1.3.1",
+      desc: "Corrected sorting order for Precedent Tracker (now strictly chronological). Fixed display name inconsistencies for Justices Jamal and Côté."
+    },
+    {
+      version: "v1.3.0",
+      desc: "Added Multi-Issue Case View: Complex cases now display tabs for separate legal issues, allowing users to toggle between specific legal questions (e.g., Criminal vs. Constitutional) to see accurate voting splits per issue. Fixed layout obstruction on Case Detail modal."
+    },
+    {
+      version: "v1.2.1",
+      desc: "Corrected an issue where statistics and vote counts were inflated for cases involving multiple legal issues."
+    },
     { 
       version: "v1.2.0", 
       desc: 'Fixed bug where justices were being incorrectly listed as "concurring" instead of "majority" on individual case previews.' 

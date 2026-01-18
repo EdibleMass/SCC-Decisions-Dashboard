@@ -12,15 +12,29 @@ interface ComparisonViewProps {
 const ComparisonView: React.FC<ComparisonViewProps> = ({ justice1Name, justice2Name, votes1, votes2 }) => {
   
   const comparisonStats = useMemo(() => {
+    // 0. Deduplicate Helper
+    // Flatten multiple vote rows per case (multi-issue) to single unique vote per justice per case
+    const dedupe = (list: VoteData[]) => {
+      const seen = new Set<string>();
+      return list.filter(v => {
+        if (seen.has(v.primaryCaseID)) return false;
+        seen.add(v.primaryCaseID);
+        return true;
+      });
+    };
+
+    const uniqueVotes1 = dedupe(votes1);
+    const uniqueVotes2 = dedupe(votes2);
+
     // Map votes by caseID for quick lookup
     const v1Map = new Map<string, string>();
-    votes1.forEach(v => v1Map.set(v.primaryCaseID, v.justiceWithMajorityResult));
+    uniqueVotes1.forEach(v => v1Map.set(v.primaryCaseID, v.justiceWithMajorityResult));
 
     let sharedCases = 0;
     let agreed = 0;
     let disagreed = 0;
 
-    votes2.forEach(v2 => {
+    uniqueVotes2.forEach(v2 => {
       const v1Result = v1Map.get(v2.primaryCaseID);
       // We only care if both have a valid majority/dissent vote (1 or 2)
       if (v1Result && (v1Result === VoteResult.Majority || v1Result === VoteResult.Dissent) &&

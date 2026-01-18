@@ -37,6 +37,9 @@ export interface RespondentData {
 export interface IssueData {
   primaryCaseID: string;
   issueAreaCan: string; // Changed from issueAreaCAN to match CSV header
+  issueID: string; // Unique identifier for the issue
+  caseIssueID: string; // Sequential ID (1, 2, 3) within a case
+  issueCAN?: string; // Specific issue description code
 }
 
 export interface VoteData {
@@ -48,6 +51,7 @@ export interface VoteData {
   justiceWithMajorityResult: string; // 1 = Majority, 2 = Dissent
   justiceSignedOnWith: string; // ID of the justice this vote supports
   primaryCaseID: string;
+  issueID: string; // Link to specific issue
 }
 
 export interface JusticeData {

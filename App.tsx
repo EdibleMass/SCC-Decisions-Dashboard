@@ -54,11 +54,11 @@ type ViewMode = 'overview' | 'justice';
 const App: React.FC = () => {
   // Navigation State
   const [showDashboard, setShowDashboard] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false); // For informational footer link
+  const [showMandatoryTerms, setShowMandatoryTerms] = useState(false); // For entry gate
   const [showCitation, setShowCitation] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
-  const [showBetaWarning, setShowBetaWarning] = useState(true);
 
   const [data, setData] = useState<ParsedDataset>({
     cases: [],
@@ -153,9 +153,15 @@ const App: React.FC = () => {
     if (!selectedCaseId) return null;
     const c = data.cases.find(c => c.primaryCaseID === selectedCaseId);
     if (!c) return null;
+    
+    // Get all votes for this case
     const v = data.votes.filter(vote => vote.primaryCaseID === selectedCaseId);
-    return { c, v };
-  }, [selectedCaseId, data.cases, data.votes]);
+    
+    // Get all issues for this case
+    const i = data.issues.filter(issue => issue.primaryCaseID === selectedCaseId);
+    
+    return { c, v, i };
+  }, [selectedCaseId, data.cases, data.votes, data.issues]);
 
   const getJusticeName = (id: string) => data.justices.find(j => j.justiceID === id)?.justiceName || 'Unknown';
 
@@ -181,7 +187,10 @@ const App: React.FC = () => {
 
   // 3. Landing Page
   if (!showDashboard) {
-    return <LandingPage onEnter={() => setShowDashboard(true)} />;
+    return <LandingPage onEnter={() => {
+        setShowDashboard(true);
+        setShowMandatoryTerms(true);
+    }} />;
   }
 
   // 4. Main Dashboard
@@ -264,7 +273,7 @@ const App: React.FC = () => {
                     className="flex-shrink-0 hidden md:flex bg-slate-800/50 p-1 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer"
                     title="View Changelog"
                 >
-                    <span className="px-3 py-1.5 text-xs font-mono text-slate-400">v1.2.0</span>
+                    <span className="px-3 py-1.5 text-xs font-mono text-slate-400">v1.3.1</span>
                 </button>
             </div>
           </div>
@@ -607,6 +616,7 @@ const App: React.FC = () => {
               <CaseDetail 
                 caseData={selectedCaseData.c}
                 votes={selectedCaseData.v}
+                issues={selectedCaseData.i} // Pass issues here
                 justices={data.justices}
                 onClose={() => setSelectedCaseId(null)}
                 onCompare={() => setComparisonMode(true)}
@@ -614,7 +624,7 @@ const App: React.FC = () => {
           )
       )}
 
-      {/* 6. Terms of Use Modal */}
+      {/* 6. Terms of Use Modal (Informational - Footer Link) */}
       {showTerms && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
             <div className="bg-white max-w-lg w-full rounded-xl shadow-2xl p-6 relative">
@@ -659,6 +669,47 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* NEW: Mandatory Terms Modal (Entry Gate) */}
+      {showMandatoryTerms && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md animate-fade-in">
+            <div className="bg-white max-w-lg w-full rounded-xl shadow-2xl p-8 relative">
+                <h3 className="text-2xl font-serif font-bold text-slate-900 mb-2">Welcome to the Dashboard</h3>
+                <p className="text-slate-500 mb-6 text-sm">Please review and accept the terms of use to proceed.</p>
+                
+                <div className="prose prose-sm text-slate-600 space-y-4 max-h-[50vh] overflow-y-auto pr-2 bg-slate-50 p-4 rounded-lg border border-slate-100 mb-6 text-left">
+                    <p>
+                        This dashboard is made available for educational and informational purposes. Neither the Creator (Kevin Zhang) nor any data source providers assume any liability for errors in the software, the visualization algorithms, or the underlying data. This dashboard is unaffiliated with Lenczner Slaght.
+                    </p>
+                    <p>
+                        <strong>No representations, warranties, or undertakings are made regarding the accuracy, completeness, or currency of the analysis presented herein.</strong> While the dashboard may be updated to reflect new Supreme Court decisions or codebase improvements, there is no obligation to do so at any particular interval or at all.
+                    </p>
+                    <p>
+                        By accessing and using this application, you acknowledge these terms and release the Creator from any liability relating to your use of the dashboard, including but not limited to any damages or academic consequences that you might suffer as a result of reliance on the visualizations or data contained within.
+                    </p>
+                </div>
+
+                <div className="flex justify-end items-center gap-4">
+                    <button 
+                        onClick={() => { 
+                            setShowDashboard(false); 
+                            setShowMandatoryTerms(false);
+                            window.scrollTo(0,0);
+                        }} 
+                        className="text-slate-500 hover:text-red-600 text-sm font-bold transition-colors"
+                    >
+                        I Do Not Agree
+                    </button>
+                    <button 
+                        onClick={() => setShowMandatoryTerms(false)} 
+                        className="bg-scc-blue text-white px-8 py-3 rounded-lg text-sm font-bold hover:bg-slate-800 transition-colors shadow-lg"
+                    >
+                        I Agree
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
       {/* 7. Citation Modal */}
       {showCitation && <CitationModal onClose={() => setShowCitation(false)} />}
 
@@ -668,22 +719,6 @@ const App: React.FC = () => {
       {/* 9. Changelog Modal */}
       {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
 
-      {/* Beta Warning Bar */}
-      {showDashboard && showBetaWarning && (
-        <div className="fixed bottom-0 left-0 right-0 bg-yellow-400 text-yellow-900 px-4 py-3 z-[90] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex items-center justify-between animate-fade-in-up">
-            <div className="max-w-7xl mx-auto flex items-center gap-3 w-full justify-center text-sm font-medium">
-               <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-               <p>Notice: This dashboard is iterative and may contain undiscovered bugs. Please cross-reference all visualizations and data with official Supreme Court of Canada judgments.</p>
-            </div>
-            <button
-                onClick={() => setShowBetaWarning(false)}
-                className="p-1 hover:bg-yellow-500 rounded-full transition-colors flex-shrink-0 ml-4"
-                aria-label="Dismiss warning"
-            >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-        </div>
-      )}
     </div>
   );
 };

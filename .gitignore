@@ -27,3 +27,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Cached source geometry for scripts/generate-map-paths.mjs (refetched on demand)
+scripts/.cache-*.geojson

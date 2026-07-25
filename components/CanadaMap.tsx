@@ -1,14 +1,23 @@
 import React, { useState } from 'react';
+import {
+  MAP_VIEWBOX,
+  PROVINCE_PATHS,
+  PROVINCE_LABEL_ANCHORS,
+  PROVINCE_RENDERED_AREA,
+} from './canadaGeography';
 
 /**
- * A stylized choropleth of Canada.
+ * A choropleth of Canada.
  *
- * Generalized from an earlier reversal-rate-only version so it can also carry
- * data-coverage, where the important state is not "low value" but "no data at
- * all". Those two look identical on a normal choropleth — both end up pale —
- * which would quietly misrepresent a gap in the corpus as a real finding. So
- * `available: false` regions render with a hatch pattern and are excluded from
- * the colour scale entirely.
+ * Geometry is real province boundaries projected with a Lambert Conformal
+ * Conic projection (see scripts/generate-map-paths.mjs), replacing the
+ * hand-approximated coordinates this component used to carry.
+ *
+ * It also handles data *coverage*, where the important state is not "low value"
+ * but "no data at all". Those two look identical on a normal choropleth — both
+ * end up pale — which would quietly misrepresent a gap in the corpus as a real
+ * finding. So `available: false` regions render with a hatch pattern and are
+ * excluded from the colour scale entirely.
  */
 export interface RegionDatum {
   id: string;
@@ -33,49 +42,6 @@ interface CanadaMapProps {
   unavailableNote?: string;
 }
 
-// Accurate SVG paths for Canadian Provinces/Territories
-// ViewBox 0 0 950 800 (Approximation of Lambert Conformal Conic projection)
-const PATHS: Record<string, string> = {
-  // British Columbia (2)
-  '2': 'M177.3,612.3l-2.4-3.1l-14.9-37.1l-22.3-43.1l-11.8-19.6l-5.5-27.4l-11.8-14.9l-13.3-8.6l-18.8-18l-14.1-1.6l-29-23.5l3.1-13.3l12.5-9.4l4.7-21.2l29.8,2.4l11.8-21.2l9.4-4.7l4.7-18l141.2,19.6l3.1,302.7L177.3,612.3z M84.8,610l12.5-12.5l14.1,2.4l20.4,14.1l-3.1,22l-14.9,2.4l-11-9.4L84.8,610z',
-  
-  // Alberta (1)
-  '1': 'M253.3,653.1L254.1,350.4l75.3-2.4l0.8,116.8l54.1,189.8l-72.1,0.8L253.3,653.1z',
-  
-  // Saskatchewan (10)
-  '10': 'M384.3,654.6l-0.8-189.8l-0.8-116.8l105.1,1.6l-6.3,306.6L384.3,654.6z',
-  
-  // Manitoba (3)
-  '3': 'M481.5,656.2l6.3-306.6l106.6,2.4l3.1,34.5l11,11.8l11.8,47.8l9.4,7.8l-3.1,20.4l-12.5,23.5l3.1,11.8l-12.5,14.1l-6.3,27.4l-3.1,22.7l-29.8,2.4l-2.4,80H481.5z',
-  
-  // Ontario (7)
-  '7': 'M556.8,753.4l2.4-80l29.8-2.4l3.1-22.7l6.3-27.4l12.5-14.1l-3.1-11.8l12.5-23.5l3.1-20.4l-9.4-7.8l47.8-17.2l12.5,13.3l37.6,18.8l20.4,36.1l43.9,23.5l12.5,43.9l-20.4,18.8l-23.5,4.7l-9.4,26.7l-26.7,29l-43.9,13.3l-20.4-12.5l-20.4-26.7L556.8,753.4z',
-  
-  // Quebec (9)
-  '9': 'M614.8,552.7l-12.5-13.3l-47.8,17.2l-11.8-47.8l-11-11.8l-3.1-34.5l-20.4-7.8l6.3-23.5l26.7-18.8l18.8-3.1l20.4-34.5l43.9,12.5l23.5,18.8l34.5,9.4l43.9-9.4l34.5,18.8l26.7,6.3l37.6,40.8l20.4,29.8l-12.5,29.8l-37.6,12.5l-20.4-18.8l-18.8,3.1l-12.5,20.4l-23.5,23.5l-12.5,20.4l-26.7,18.8l-34.5,29.8l-12.5-43.9L656,590.7L635.6,554.6L614.8,552.7z',
-  
-  // New Brunswick (4)
-  '4': 'M771.6,679.7l-26.7-6.3l-26.7,14.1l-9.4-12.5l12.5-20.4l23.5-23.5l12.5-20.4l18.8-3.1l11,18.8l-4.7,23.5L771.6,679.7z',
-  
-  // Nova Scotia (6)
-  '6': 'M777.9,675l18.8-12.5l26.7,23.5l-12.5,29.8l-37.6-12.5L777.9,675z',
-  
-  // PEI (8)
-  '8': 'M795.1,643.6l18.8-3.1l6.3,6.3l-12.5,6.3L795.1,643.6z',
-  
-  // Newfoundland & Labrador (5) (Labrador + Island)
-  '5': 'M733.9,566l12.5-29.8l-20.4-29.8l-37.6-40.8l23.5-9.4l34.5,18.8l43.9,29.8l26.7,40.8L733.9,566z M875.1,595l34.5-18.8l20.4,12.5l-12.5,43.9l-34.5,18.8L875.1,595z',
-  
-  // Yukon (13)
-  '13': 'M177.3,309.6l-3.1-97.2l91,3.1l14.1,18.8l26.7,34.5l-9.4,37.6L254.1,350.4L177.3,309.6z',
-  
-  // Northwest Territories (11)
-  '11': 'M296.6,306.5l9.4-37.6l23.5-34.5l34.5-12.5l91,9.4l43.9,43.9l-11,77.6l-105.1-1.6l-0.8-37.6L296.6,306.5z',
-  
-  // Nunavut (12)
-  '12': 'M498.9,352.7l11-77.6l23.5-23.5l43.9-12.5l47.8,20.4l91,29.8l43.9,43.9l-26.7,6.3l-34.5-18.8l-43.9,9.4l-34.5-9.4l-23.5-18.8l-43.9-12.5l-20.4,34.5l-18.8,3.1l-6.3,23.5l20.4,7.8l3.1,34.5l-106.6-2.4L498.9,352.7z M650,150 l50,-30 l40,10 l-20,50 z' // Very simplified islands
-};
-
 const PROVINCE_NAMES: Record<string, string> = {
   '1': 'Alberta',
   '2': 'British Columbia',
@@ -89,8 +55,43 @@ const PROVINCE_NAMES: Record<string, string> = {
   '10': 'Saskatchewan',
   '11': 'N.W.T.',
   '12': 'Nunavut',
-  '13': 'Yukon'
+  '13': 'Yukon',
 };
+
+const ABBREV: Record<string, string> = {
+  '1': 'AB', '2': 'BC', '3': 'MB', '4': 'NB', '5': 'NL', '6': 'NS', '7': 'ON',
+  '8': 'PE', '9': 'QC', '10': 'SK', '11': 'NT', '12': 'NU', '13': 'YT',
+};
+
+/**
+ * Callouts for provinces too small to hold a label at this scale.
+ *
+ * Nova Scotia is a narrow peninsula (its centroid sits ~2.6px from a coastline)
+ * and PEI renders at ~107px², so both need their labels in open water. New
+ * Brunswick is roomy enough (~12.6px clearance) and keeps an inline label.
+ *
+ * The leader routes are not eyeballed — they were checked against every
+ * province ring with a segment-intersection test, because the obvious
+ * left-to-right routes all cut straight through Nova Scotia. PEI in particular
+ * has only one clean exit: due north through the ~13px channel between
+ * Newfoundland island (which ends at y≈465) and Cape Breton (which starts at
+ * y≈478), then east. Moving these points by hand risks a leader crossing land,
+ * so re-run that check if you change them.
+ */
+const CALLOUTS: Record<string, { label: [number, number]; leader: string }> = {
+  // Prince Edward Island — north through the Newfoundland/Cape Breton channel.
+  '8': { label: [854, 471], leader: '745,500 745,471 848,471' },
+  // Nova Scotia — south-east into the open Atlantic.
+  '6': { label: [854, 540], leader: '748,524 848,540' },
+};
+
+/** Below this rendered area a province gets no inline label. */
+const INLINE_LABEL_MIN_AREA = 1200;
+
+/** Small provinces get smaller type so the label stays within the shape. */
+const SMALL_LABEL_MAX_AREA = 4000;
+
+const RAMP = ['#dbeafe', '#93c5fd', '#60a5fa', '#2563eb', '#1e3a8a'];
 
 const CanadaMap: React.FC<CanadaMapProps> = ({
   data,
@@ -109,27 +110,32 @@ const CanadaMap: React.FC<CanadaMapProps> = ({
     maxValue ?? (available.length ? Math.max(...available.map(d => d.value)) : 0);
 
   // Sequential blue ramp on a square-root scale: decision volume is heavily
-  // skewed (BC Supreme Court alone is roughly a third of the provincial
-  // corpus), and a linear ramp would render everything except the largest
-  // jurisdiction as the same pale wash.
+  // skewed (BC Supreme Court alone is roughly half the provincial corpus), and
+  // a linear ramp would render everything except the largest jurisdiction as
+  // the same pale wash.
+  const rampIndex = (value: number) => {
+    if (ceiling <= 0 || value <= 0) return -1;
+    const t = Math.sqrt(value / ceiling);
+    return Math.min(RAMP.length - 1, Math.floor(t * RAMP.length));
+  };
+
   const getFill = (id: string) => {
     const d = data.get(id);
     if (!d || !d.available) return 'url(#unavailableHatch)';
-    if (ceiling <= 0 || d.value <= 0) return '#eff6ff';
-    const t = Math.sqrt(d.value / ceiling);
-    if (t < 0.2) return '#dbeafe';
-    if (t < 0.4) return '#93c5fd';
-    if (t < 0.6) return '#60a5fa';
-    if (t < 0.8) return '#2563eb';
-    return '#1e3a8a';
+    const i = rampIndex(d.value);
+    return i < 0 ? '#eff6ff' : RAMP[i];
+  };
+
+  // Keep label text legible against whatever sits underneath it.
+  const labelColor = (id: string) => {
+    const d = data.get(id);
+    if (!d || !d.available) return '#94a3b8';
+    return rampIndex(d.value) >= 3 ? '#ffffff' : '#1e293b';
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    setMousePos({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    });
+    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
   const hoverData = hoveredId
@@ -142,9 +148,13 @@ const CanadaMap: React.FC<CanadaMapProps> = ({
       }
     : null;
 
-  return (
-    <div className="relative w-full h-full min-h-[300px] flex items-center justify-center bg-slate-50 rounded-lg overflow-hidden border border-slate-100" onMouseMove={handleMouseMove}>
+  const ids = Object.keys(PROVINCE_PATHS);
 
+  return (
+    <div
+      className="relative w-full h-full min-h-[300px] flex items-center justify-center bg-slate-50 rounded-lg overflow-hidden border border-slate-100"
+      onMouseMove={handleMouseMove}
+    >
       {/* Tooltip */}
       {hoveredId && hoverData && (
         <div
@@ -165,18 +175,24 @@ const CanadaMap: React.FC<CanadaMapProps> = ({
         </div>
       )}
 
-      {/* SVG ViewBox adjusted to better fit the coordinates */}
-      <svg viewBox="0 0 950 800" className="w-full h-full max-h-[400px]">
+      <svg viewBox={MAP_VIEWBOX} className="w-full h-full max-h-[440px]" role="img" aria-label="Map of Canada by province">
         <defs>
           {/* Diagonal hatch marks jurisdictions absent from the corpus, so a
               coverage gap can never be mistaken for a low value. */}
-          <pattern id="unavailableHatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+          <pattern
+            id="unavailableHatch"
+            width="7"
+            height="7"
+            patternTransform="rotate(45)"
+            patternUnits="userSpaceOnUse"
+          >
             <rect width="7" height="7" fill="#f1f5f9" />
             <line x1="0" y1="0" x2="0" y2="7" stroke="#cbd5e1" strokeWidth="2.5" />
           </pattern>
         </defs>
-        <g transform="translate(0, 20)">
-          {Object.entries(PATHS).map(([id, path]) => {
+
+        <g>
+          {ids.map(id => {
             const d = data.get(id);
             const isAvailable = !!d?.available;
             const isSelected = selectedId === id;
@@ -184,19 +200,66 @@ const CanadaMap: React.FC<CanadaMapProps> = ({
             return (
               <path
                 key={id}
-                d={path}
+                d={PROVINCE_PATHS[id]}
                 fill={getFill(id)}
                 stroke={isSelected ? '#C5A900' : '#ffffff'}
-                strokeWidth={isSelected ? 3 : 1}
-                className={`transition-colors duration-200 ${isAvailable ? 'cursor-pointer hover:opacity-90' : 'cursor-not-allowed'}`}
+                strokeWidth={isSelected ? 2 : 0.8}
+                strokeLinejoin="round"
+                className={`transition-[fill,opacity] duration-200 ${
+                  isAvailable ? 'cursor-pointer' : 'cursor-not-allowed'
+                }`}
                 onMouseEnter={() => setHoveredId(id)}
                 onMouseLeave={() => setHoveredId(null)}
                 onClick={() => { if (isAvailable) onSelect(id === selectedId ? 'All' : id); }}
                 style={{
-                    filter: isSelected ? 'drop-shadow(0px 0px 4px rgba(197, 169, 0, 0.5))' : 'none',
-                    opacity: hoveredId && !isHovered && !isSelected ? 0.6 : 1
+                  filter: isSelected ? 'drop-shadow(0px 0px 5px rgba(197, 169, 0, 0.55))' : 'none',
+                  opacity: hoveredId && !isHovered && !isSelected ? 0.55 : 1,
                 }}
               />
+            );
+          })}
+        </g>
+
+        {/* Leader lines for the callouts, drawn under the text. */}
+        <g pointerEvents="none">
+          {Object.entries(CALLOUTS).map(([id, { leader }]) => (
+            <polyline
+              key={`leader-${id}`}
+              points={leader}
+              fill="none"
+              stroke="#94a3b8"
+              strokeWidth="0.9"
+              opacity={hoveredId && hoveredId !== id ? 0.4 : 1}
+              className="transition-opacity duration-200"
+            />
+          ))}
+        </g>
+
+        {/* Province labels */}
+        <g pointerEvents="none" fontFamily="Inter, sans-serif" fontWeight="700">
+          {ids.map(id => {
+            const callout = CALLOUTS[id];
+            const area = PROVINCE_RENDERED_AREA[id];
+            const inline = !callout && area >= INLINE_LABEL_MIN_AREA;
+            if (!callout && !inline) return null;
+
+            const [x, y] = callout ? callout.label : PROVINCE_LABEL_ANCHORS[id];
+            const dim = hoveredId && hoveredId !== id;
+
+            return (
+              <text
+                key={`label-${id}`}
+                x={x}
+                y={y}
+                textAnchor={callout ? 'start' : 'middle'}
+                dominantBaseline="middle"
+                fontSize={callout ? 13 : area < SMALL_LABEL_MAX_AREA ? 11 : 14}
+                fill={callout ? '#475569' : labelColor(id)}
+                opacity={dim ? 0.45 : 1}
+                className="transition-opacity duration-200 select-none"
+              >
+                {ABBREV[id]}
+              </text>
             );
           })}
         </g>
@@ -206,7 +269,7 @@ const CanadaMap: React.FC<CanadaMapProps> = ({
       <div className="absolute bottom-2 left-2 flex items-center gap-3 text-[10px] text-slate-500">
         <div className="flex items-center gap-1">
           <span>fewer</span>
-          {['#dbeafe', '#93c5fd', '#60a5fa', '#2563eb', '#1e3a8a'].map(c => (
+          {RAMP.map(c => (
             <span key={c} className="w-3.5 h-2.5 rounded-[1px]" style={{ backgroundColor: c }} />
           ))}
           <span>more</span>
@@ -217,10 +280,6 @@ const CanadaMap: React.FC<CanadaMapProps> = ({
           </svg>
           <span>no data</span>
         </div>
-      </div>
-
-      <div className="absolute bottom-2 right-2 text-[10px] text-gray-400 italic">
-        *Stylized Geographic Representation
       </div>
     </div>
   );

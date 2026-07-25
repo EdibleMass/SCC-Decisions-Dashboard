@@ -67,14 +67,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
         <div className="relative z-10 max-w-5xl text-center space-y-8 animate-fade-in-up">
             <div className="inline-block mb-4">
                 <span className="px-3 py-1 border border-scc-gold text-scc-gold text-xs font-mono tracking-[0.2em] uppercase">
-                    Vol. 1 • 1954 - 2022
+                    Vol. 2 • 1954 - 2025
                 </span>
             </div>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold tracking-tight leading-tight">
                 A Mapping of <br/> <span className="text-slate-400 italic font-serif">Canadian</span> Jurisprudence
             </h1>
             <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto font-light leading-relaxed">
-                An aggregated retrospective on the Supreme Court of Canada, translating seventy years of case-law into an interactive dashboard.
+                An aggregated retrospective on the Supreme Court of Canada, translating over seventy years of case-law into an interactive dashboard.
             </p>
             
             <div className="pt-8 flex flex-col items-center gap-4">
@@ -518,7 +518,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                             The Supreme Court of Canada Database. A comprehensive dataset coding every SCC decision since 1954, maintained for empirical legal research.
                          </p>
                          <p className="text-[10px] text-gray-400 font-mono leading-tight">
-                            Paul-Erik Veel, Katie Glowach, Benjamin Alarie, and Andrew Green, Lenczner Slaght Supreme Court of Canada Database, Release [2023.01]. Available at: <a href="http://www.supremecourtdatabase.com" target="_blank" rel="noopener noreferrer" className="hover:text-scc-blue underline">www.supremecourtdatabase.com</a>
+                            Paul-Erik Veel, Katie Glowach, Benjamin Alarie, and Andrew Green, Lenczner Slaght Supreme Court of Canada Database, Release [2026.01]. Available at: <a href="http://www.supremecourtdatabase.com" target="_blank" rel="noopener noreferrer" className="hover:text-scc-blue underline">www.supremecourtdatabase.com</a>
                          </p>
                          <p className="text-[10px] text-slate-400 italic mt-2">
                              (This dashboard is unaffiliated with Lenczner Slaght)

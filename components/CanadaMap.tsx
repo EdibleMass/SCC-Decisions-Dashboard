@@ -1,16 +1,36 @@
 import React, { useState } from 'react';
 
-interface ProvinceStats {
+/**
+ * A stylized choropleth of Canada.
+ *
+ * Generalized from an earlier reversal-rate-only version so it can also carry
+ * data-coverage, where the important state is not "low value" but "no data at
+ * all". Those two look identical on a normal choropleth — both end up pale —
+ * which would quietly misrepresent a gap in the corpus as a real finding. So
+ * `available: false` regions render with a hatch pattern and are excluded from
+ * the colour scale entirely.
+ */
+export interface RegionDatum {
   id: string;
   name: string;
-  rate: number;
-  total: number;
+  /** Drives the colour ramp. Ignored when `available` is false. */
+  value: number;
+  /** Formatted value shown in the tooltip, e.g. "24,002 decisions". */
+  primaryLabel: string;
+  /** Optional second tooltip line, e.g. coverage years. */
+  secondaryLabel?: string;
+  /** False = jurisdiction not present in the dataset. */
+  available: boolean;
 }
 
 interface CanadaMapProps {
-  data: Map<string, ProvinceStats>;
+  data: Map<string, RegionDatum>;
   selectedId: string;
   onSelect: (id: string) => void;
+  /** Upper bound of the colour ramp. Defaults to the max value in `data`. */
+  maxValue?: number;
+  /** Shown when hovering a region flagged unavailable. */
+  unavailableNote?: string;
 }
 
 // Accurate SVG paths for Canadian Provinces/Territories
@@ -72,21 +92,35 @@ const PROVINCE_NAMES: Record<string, string> = {
   '13': 'Yukon'
 };
 
-const CanadaMap: React.FC<CanadaMapProps> = ({ data, selectedId, onSelect }) => {
+const CanadaMap: React.FC<CanadaMapProps> = ({
+  data,
+  selectedId,
+  onSelect,
+  maxValue,
+  unavailableNote = 'Not in this dataset',
+}) => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-  const getColor = (id: string) => {
-    const stats = data.get(id);
-    if (!stats || stats.total === 0) return '#e2e8f0'; // slate-200
-    
-    // Scale from 0% to 60%+ reversal rate
-    // Light Blue (#bfdbfe) to Deep Blue (#172554)
-    const rate = stats.rate; // 0-100
-    if (rate < 20) return '#dbeafe';
-    if (rate < 30) return '#93c5fd';
-    if (rate < 40) return '#60a5fa';
-    if (rate < 50) return '#2563eb';
+  const allRegions: RegionDatum[] = [];
+  data.forEach(d => allRegions.push(d));
+  const available = allRegions.filter(d => d.available);
+  const ceiling =
+    maxValue ?? (available.length ? Math.max(...available.map(d => d.value)) : 0);
+
+  // Sequential blue ramp on a square-root scale: decision volume is heavily
+  // skewed (BC Supreme Court alone is roughly a third of the provincial
+  // corpus), and a linear ramp would render everything except the largest
+  // jurisdiction as the same pale wash.
+  const getFill = (id: string) => {
+    const d = data.get(id);
+    if (!d || !d.available) return 'url(#unavailableHatch)';
+    if (ceiling <= 0 || d.value <= 0) return '#eff6ff';
+    const t = Math.sqrt(d.value / ceiling);
+    if (t < 0.2) return '#dbeafe';
+    if (t < 0.4) return '#93c5fd';
+    if (t < 0.6) return '#60a5fa';
+    if (t < 0.8) return '#2563eb';
     return '#1e3a8a';
   };
 
@@ -98,52 +132,67 @@ const CanadaMap: React.FC<CanadaMapProps> = ({ data, selectedId, onSelect }) => 
     });
   };
 
-  const getHoverData = () => {
-    if (!hoveredId) return null;
-    return data.get(hoveredId) || { name: PROVINCE_NAMES[hoveredId], rate: 0, total: 0 };
-  };
-
-  const hoverData = getHoverData();
+  const hoverData = hoveredId
+    ? data.get(hoveredId) ?? {
+        id: hoveredId,
+        name: PROVINCE_NAMES[hoveredId] ?? 'Unknown',
+        value: 0,
+        primaryLabel: unavailableNote,
+        available: false,
+      }
+    : null;
 
   return (
     <div className="relative w-full h-full min-h-[300px] flex items-center justify-center bg-slate-50 rounded-lg overflow-hidden border border-slate-100" onMouseMove={handleMouseMove}>
-      
+
       {/* Tooltip */}
       {hoveredId && hoverData && (
-        <div 
-          className="absolute z-10 pointer-events-none bg-slate-900 text-white text-xs p-2 rounded shadow-lg transform -translate-y-full -translate-x-1/2 mt-[-10px]"
+        <div
+          className="absolute z-10 pointer-events-none bg-slate-900 text-white text-xs p-2 rounded shadow-lg transform -translate-y-full -translate-x-1/2 mt-[-10px] whitespace-nowrap"
           style={{ left: mousePos.x, top: mousePos.y }}
         >
           <p className="font-bold">{hoverData.name}</p>
-          <div className="flex justify-between gap-4 mt-1">
-             <span className="text-gray-400">Reversal:</span>
-             <span className="font-mono text-scc-gold">{hoverData.rate.toFixed(1)}%</span>
-          </div>
-          <div className="flex justify-between gap-4">
-             <span className="text-gray-400">Decisions:</span>
-             <span className="font-mono">{hoverData.total}</span>
-          </div>
+          {hoverData.available ? (
+            <>
+              <p className="font-mono text-scc-gold mt-1">{hoverData.primaryLabel}</p>
+              {hoverData.secondaryLabel && (
+                <p className="text-slate-400 mt-0.5">{hoverData.secondaryLabel}</p>
+              )}
+            </>
+          ) : (
+            <p className="text-slate-400 mt-1 italic">{unavailableNote}</p>
+          )}
         </div>
       )}
 
       {/* SVG ViewBox adjusted to better fit the coordinates */}
       <svg viewBox="0 0 950 800" className="w-full h-full max-h-[400px]">
-        <g transform="translate(0, 20)"> 
+        <defs>
+          {/* Diagonal hatch marks jurisdictions absent from the corpus, so a
+              coverage gap can never be mistaken for a low value. */}
+          <pattern id="unavailableHatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+            <rect width="7" height="7" fill="#f1f5f9" />
+            <line x1="0" y1="0" x2="0" y2="7" stroke="#cbd5e1" strokeWidth="2.5" />
+          </pattern>
+        </defs>
+        <g transform="translate(0, 20)">
           {Object.entries(PATHS).map(([id, path]) => {
+            const d = data.get(id);
+            const isAvailable = !!d?.available;
             const isSelected = selectedId === id;
             const isHovered = hoveredId === id;
             return (
               <path
                 key={id}
                 d={path}
-                fill={getColor(id)}
+                fill={getFill(id)}
                 stroke={isSelected ? '#C5A900' : '#ffffff'}
                 strokeWidth={isSelected ? 3 : 1}
-                className="transition-colors duration-200 cursor-pointer hover:opacity-90"
+                className={`transition-colors duration-200 ${isAvailable ? 'cursor-pointer hover:opacity-90' : 'cursor-not-allowed'}`}
                 onMouseEnter={() => setHoveredId(id)}
                 onMouseLeave={() => setHoveredId(null)}
-                onClick={() => onSelect(id === selectedId ? 'All' : id)}
-                style={{ 
+                onClick={() => { if (isAvailable) onSelect(id === selectedId ? 'All' : id); }}
+                style={{
                     filter: isSelected ? 'drop-shadow(0px 0px 4px rgba(197, 169, 0, 0.5))' : 'none',
                     opacity: hoveredId && !isHovered && !isSelected ? 0.6 : 1
                 }}
@@ -152,6 +201,23 @@ const CanadaMap: React.FC<CanadaMapProps> = ({ data, selectedId, onSelect }) => 
           })}
         </g>
       </svg>
+
+      {/* Legend */}
+      <div className="absolute bottom-2 left-2 flex items-center gap-3 text-[10px] text-slate-500">
+        <div className="flex items-center gap-1">
+          <span>fewer</span>
+          {['#dbeafe', '#93c5fd', '#60a5fa', '#2563eb', '#1e3a8a'].map(c => (
+            <span key={c} className="w-3.5 h-2.5 rounded-[1px]" style={{ backgroundColor: c }} />
+          ))}
+          <span>more</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <svg width="12" height="10" className="rounded-[1px]">
+            <rect width="12" height="10" fill="url(#unavailableHatch)" />
+          </svg>
+          <span>no data</span>
+        </div>
+      </div>
 
       <div className="absolute bottom-2 right-2 text-[10px] text-gray-400 italic">
         *Stylized Geographic Representation

@@ -26,7 +26,7 @@ const UserGuideModal: React.FC<UserGuideModalProps> = ({ onClose }) => {
             <section>
                 <h3 className="text-xl font-bold text-slate-900 mb-2 border-l-4 border-scc-gold pl-3">Overview</h3>
                 <p>
-                    The SCC Decisions Dashboard is an interactive legal analytics platform that transforms over 70 years (1954–2022) of Supreme Court of Canada data into actionable insights. It serves as a "Digital Twin" of the Court, allowing researchers, students, and practitioners to visualize judicial behavior, consensus patterns, and case outcomes beyond simple text analysis.
+                    The SCC Decisions Dashboard is an interactive legal analytics platform that transforms over 70 years (1954–2025) of Supreme Court of Canada data into actionable insights. It serves as a "Digital Twin" of the Court, allowing researchers, students, and practitioners to visualize judicial behavior, consensus patterns, and case outcomes beyond simple text analysis.
                 </p>
             </section>
 

@@ -1,5 +1,6 @@
 {
   "name": "SCC Decisions Dashboard",
   "description": "An interactive dashboard for analyzing Supreme Court of Canada decisions, focusing on justice voting patterns and comparisons based on the comprehensive SCC Dataset.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }

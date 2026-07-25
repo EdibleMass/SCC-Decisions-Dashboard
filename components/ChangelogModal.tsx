@@ -7,6 +7,10 @@ interface ChangelogModalProps {
 const ChangelogModal: React.FC<ChangelogModalProps> = ({ onClose }) => {
   const changes = [
     {
+      version: "v2.0.0",
+      desc: "Upgraded the database to the newest version of the Lenczer Slaght Supreme Court of Canada Dataset. Longitudinal scope expanded with decisions and voting metadata extending up to 2025. Updated all judicial indicators, timeline modules, and outcome predictors accordingly."
+    },
+    {
       version: "v1.3.1",
       desc: "Corrected sorting order for Precedent Tracker (now strictly chronological). Fixed display name inconsistencies for Justices Jamal and Côté."
     },

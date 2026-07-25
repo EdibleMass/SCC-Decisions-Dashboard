@@ -3,6 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { CaseData, VoteData, JusticeData, IssueData } from '../types';
 import { PROVINCE_MAP, ISSUE_AREAS } from '../utils/constants';
 import CaseTimeline from './CaseTimeline';
+import CaseExternalContext from './CaseExternalContext';
 
 interface CaseDetailProps {
   caseData: CaseData;
@@ -434,8 +435,12 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseData, votes, issues, justic
                     </div>
                  </div>
             </div>
+
+            {/* Optional third-party context. Opt-in: fires no network request
+                until the user clicks, so the modal never depends on A2AJ. */}
+            <CaseExternalContext caseData={caseData} />
         </div>
-        
+
         {/* Footer */}
         <div className="bg-slate-50 p-4 text-center border-t border-slate-100 text-xs text-gray-400 flex-shrink-0">
              Case ID: {caseData.primaryCaseID} • Docket: {caseData.docketID || 'N/A'} • {caseData.panelSize} Judge Panel

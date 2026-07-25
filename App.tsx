@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { fetchAllData } from './services/dataService';
 import { ParsedDataset, CaseData } from './types';
-import { generateNetworkData, getJusticeCases, generateMatrixData } from './utils/analytics';
+import { generateNetworkData, getJusticeCases, generateMatrixData, countDividedCases, AgreementScope } from './utils/analytics';
 import Loading from './components/Loading';
 import JusticeStats from './components/JusticeStats';
 import ComparisonView from './components/ComparisonView';
@@ -24,6 +24,13 @@ import SubjectMatterTreemap from './components/SubjectMatterTreemap';
 import CitationModal from './components/CitationModal';
 import UserGuideModal from './components/UserGuideModal';
 import ChangelogModal from './components/ChangelogModal';
+import AgreementScopeToggle from './components/AgreementScopeToggle';
+import IdeologyTimeline from './components/IdeologyTimeline';
+import JusticeDirectionChart from './components/JusticeDirectionChart';
+import PanelAbsence from './components/PanelAbsence';
+import CoalitionLeaderboard from './components/CoalitionLeaderboard';
+import CourtSystemPage from './components/CourtSystemPage';
+import ComparativePage from './components/ComparativePage';
 
 // Define Court Eras
 type Era = {
@@ -49,7 +56,18 @@ const COURT_ERAS: Era[] = [
 const PRE_CHARTER_IDS = ['rinfret', 'kerwin', 'taschereau', 'cartwright', 'fauteux', 'laskin'];
 const CHARTER_IDS = ['laskin', 'dickson', 'lamer', 'mclachlin', 'wagner'];
 
-type ViewMode = 'overview' | 'justice';
+// 'courts' and 'comparative' are deliberately separate destinations rather than
+// panels inside the SCC dashboard. They rest on different corpora — A2AJ full
+// text/citations and the Spaeth US crosswalk respectively — which do not
+// support the same claims as the coded SCC vote data.
+type ViewMode = 'overview' | 'justice' | 'courts' | 'comparative';
+
+const VIEW_TABS: { id: ViewMode; label: string; group: 'scc' | 'wider' }[] = [
+  { id: 'overview', label: 'Court Overview', group: 'scc' },
+  { id: 'justice', label: 'Justices & Comparison', group: 'scc' },
+  { id: 'courts', label: 'Court System', group: 'wider' },
+  { id: 'comparative', label: 'US Comparative', group: 'wider' },
+];
 
 const App: React.FC = () => {
   // Navigation State
@@ -80,6 +98,9 @@ const App: React.FC = () => {
   const [isComparing, setIsComparing] = useState<boolean>(false);
   const [agreementThreshold, setAgreementThreshold] = useState<number>(0.90); // Default to 90%
   const [selectedEra, setSelectedEra] = useState<Era | null>(null);
+  // Which cases feed the agreement metrics. 'divided' conditions on cases where
+  // the panel actually split — see AgreementScope in utils/analytics.
+  const [agreementScope, setAgreementScope] = useState<AgreementScope>('all');
 
   // Search/Modal State
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
@@ -133,14 +154,21 @@ const App: React.FC = () => {
   // Network Data
   const networkData = useMemo(() => {
     if (data.loading || filteredVotes.length === 0) return { nodes: [], links: [] };
-    return generateNetworkData(filteredVotes, activeJustices, 5); 
-  }, [filteredVotes, activeJustices, data.loading]);
+    return generateNetworkData(filteredVotes, activeJustices, 5, agreementScope);
+  }, [filteredVotes, activeJustices, data.loading, agreementScope]);
 
   // Matrix Data
   const matrixData = useMemo(() => {
     if (data.loading || filteredVotes.length === 0) return [];
-    return generateMatrixData(filteredVotes, activeJustices);
-  }, [filteredVotes, activeJustices, data.loading]);
+    return generateMatrixData(filteredVotes, activeJustices, agreementScope);
+  }, [filteredVotes, activeJustices, data.loading, agreementScope]);
+
+  // How many cases in the current slice were actually divided. Drives both the
+  // toggle's caption and a small-sample warning.
+  const dividedCount = useMemo(() => {
+    if (data.loading || filteredVotes.length === 0) return 0;
+    return countDividedCases(filteredVotes);
+  }, [filteredVotes, data.loading]);
 
   // Case List for Judge 1
   const caseList1 = useMemo(() => {
@@ -220,28 +248,26 @@ const App: React.FC = () => {
                  </div>
                </div>
 
-               {/* View Tabs */}
-               <div className="flex space-x-1 bg-slate-800 p-1 rounded-lg">
-                  <button
-                    onClick={() => setCurrentView('overview')}
-                    className={`px-3 py-1.5 text-xs lg:text-sm font-medium rounded-md transition-all ${
-                      currentView === 'overview' 
-                      ? 'bg-slate-700 text-white shadow' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                    }`}
-                  >
-                    Court Overview
-                  </button>
-                  <button
-                    onClick={() => setCurrentView('justice')}
-                    className={`px-3 py-1.5 text-xs lg:text-sm font-medium rounded-md transition-all ${
-                      currentView === 'justice' 
-                      ? 'bg-slate-700 text-white shadow' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                    }`}
-                  >
-                    Justices & Comparison
-                  </button>
+               {/* View Tabs. A divider separates views built on the coded SCC
+                   dataset from those reading other corpora. */}
+               <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-lg">
+                  {VIEW_TABS.map((tab, i) => (
+                    <React.Fragment key={tab.id}>
+                      {i > 0 && VIEW_TABS[i - 1].group !== tab.group && (
+                        <span className="w-px h-5 bg-slate-600 mx-1" aria-hidden="true" />
+                      )}
+                      <button
+                        onClick={() => { setCurrentView(tab.id); window.scrollTo(0, 0); }}
+                        className={`px-3 py-1.5 text-xs lg:text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+                          currentView === tab.id
+                          ? 'bg-slate-700 text-white shadow'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    </React.Fragment>
+                  ))}
                </div>
             </div>
 
@@ -273,15 +299,18 @@ const App: React.FC = () => {
                     className="flex-shrink-0 hidden md:flex bg-slate-800/50 p-1 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer"
                     title="View Changelog"
                 >
-                    <span className="px-3 py-1.5 text-xs font-mono text-slate-400">v1.3.1</span>
+                    <span className="px-3 py-1.5 text-xs font-mono text-slate-400">v2.0.0</span>
                 </button>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* 2. Control Ribbon */}
-      <div className="bg-white border-b border-slate-200 shadow-sm sticky top-20 z-40">
+      {/* 2. Control Ribbon.
+           Hidden on the Court System page: era filtering is a property of the
+           coded SCC dataset and has no meaning for the external A2AJ corpus,
+           so leaving it visible there would imply a filter that does nothing. */}
+      <div className={`bg-white border-b border-slate-200 shadow-sm sticky top-20 z-40 ${currentView === 'courts' ? 'hidden' : ''}`}>
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-4">
            <div className="flex flex-col xl:flex-row gap-6 items-start xl:items-center justify-between">
               
@@ -289,7 +318,7 @@ const App: React.FC = () => {
               <div className="flex flex-col gap-2 w-full xl:w-auto">
                  <div className="flex items-baseline gap-4 mb-1">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                        Select Court Era ({filteredCases.length} Decisions) <span className="text-[10px] text-red-400 normal-case tracking-normal ml-1 opacity-80">*Dataset ends 2022</span>
+                        Select Court Era ({filteredCases.length} Decisions) <span className="text-[10px] text-emerald-500 normal-case tracking-normal ml-1 font-semibold opacity-90">*Dataset updated to 2025</span>
                     </span>
                     <button 
                         onClick={() => setSelectedEra(null)}
@@ -381,7 +410,13 @@ const App: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8 flex-grow w-full">
         
            <div className="animate-fade-in-up">
-              {currentView === 'overview' ? (
+              {currentView === 'courts' ? (
+                // === MODE: WIDER COURT SYSTEM (external A2AJ data) ===
+                <CourtSystemPage />
+              ) : currentView === 'comparative' ? (
+                // === MODE: US COMPARATIVE (Spaeth crosswalk) ===
+                <ComparativePage cases={filteredCases} issues={data.issues} />
+              ) : currentView === 'overview' ? (
                 // === MODE: COURT OVERVIEW ===
                 <div className="space-y-8">
                     {/* Header */}
@@ -433,16 +468,71 @@ const App: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* JUDICIAL DIRECTION */}
+                    <div className="border-t border-slate-200 pt-8 mt-8">
+                        <div className="flex items-end justify-between border-b border-slate-200 pb-2 mb-6">
+                            <h2 className="text-2xl font-serif font-bold text-slate-900">Ideological Direction</h2>
+                            <span className="text-sm text-slate-500 italic">Coded outcomes, not judicial politics</span>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            <div className="lg:col-span-7 h-[34rem]">
+                                <IdeologyTimeline cases={filteredCases} issues={data.issues} />
+                            </div>
+                            <div className="lg:col-span-5 h-[34rem]">
+                                <JusticeDirectionChart votes={filteredVotes} justices={data.justices} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* COURT COMPOSITION */}
+                    <div className="border-t border-slate-200 pt-8 mt-8">
+                        <div className="flex items-end justify-between border-b border-slate-200 pb-2 mb-6">
+                            <h2 className="text-2xl font-serif font-bold text-slate-900">Composition & Coalitions</h2>
+                            <span className="text-sm text-slate-500 italic">Who sat, and whose reasons they signed</span>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            <div className="lg:col-span-6 h-[34rem]">
+                                <PanelAbsence
+                                    cases={filteredCases}
+                                    justicesPresent={data.justicesPresent}
+                                    missingJustices={data.missingJustices}
+                                    justices={data.justices}
+                                />
+                            </div>
+                            <div className="lg:col-span-6 h-[34rem]">
+                                <CoalitionLeaderboard votes={filteredVotes} justices={data.justices} />
+                            </div>
+                        </div>
+                    </div>
+
                     {/* CONSENSUS & ALIGNMENT */}
                     <div className="border-t border-slate-200 pt-8 mt-8">
-                        <h2 className="text-2xl font-serif font-bold text-slate-900 mb-6">Bench Alignment & Consensus</h2>
-                        
+                        <h2 className="text-2xl font-serif font-bold text-slate-900 mb-4">Bench Alignment & Consensus</h2>
+
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
+                            <AgreementScopeToggle
+                                scope={agreementScope}
+                                onChange={(s) => {
+                                    setAgreementScope(s);
+                                    // Agreement rates sit far lower on divided cases (mean ~0.57 vs
+                                    // ~0.86), so carrying the 0.90 threshold across would hide every
+                                    // link. Move the threshold to a sensible default for each scope.
+                                    setAgreementThreshold(s === 'divided' ? 0.60 : 0.90);
+                                }}
+                                totalCases={filteredCases.length}
+                                dividedCases={dividedCount}
+                            />
+                        </div>
+
                         <div className="grid grid-cols-1 gap-8">
                             {/* NETWORK GRAPH */}
                             <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
                                 <div className="mb-4">
                                     <h3 className="text-xl font-serif text-scc-blue">The Bench Alignment Protocol</h3>
-                                    <p className="text-gray-600">Force-directed graph of judicial agreement.</p>
+                                    <p className="text-gray-600">
+                                      Force-directed graph of judicial agreement
+                                      {agreementScope === 'divided' ? ' across divided cases only.' : ' across all cases.'}
+                                    </p>
                                 </div>
                                 {networkData.nodes.length > 0 ? (
                                     <NetworkGraph 
@@ -461,7 +551,10 @@ const App: React.FC = () => {
                             <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
                                 <div className="mb-6">
                                     <h3 className="text-xl font-serif text-scc-blue">Agreement Matrix</h3>
-                                    <p className="text-gray-600">Pairwise frequency of agreement.</p>
+                                    <p className="text-gray-600">
+                                      Pairwise frequency of agreement
+                                      {agreementScope === 'divided' ? ' across divided cases only.' : ' across all cases.'}
+                                    </p>
                                 </div>
                                 {matrixData.length > 0 ? (
                                     <AgreementMatrix 
@@ -560,6 +653,15 @@ const App: React.FC = () => {
                             />
                         )}
 
+                        {/* Direction in context of the whole bench */}
+                        <div className="mt-6 h-[34rem]">
+                            <JusticeDirectionChart
+                                votes={filteredVotes}
+                                justices={data.justices}
+                                highlightJusticeID={selectedJustice1}
+                            />
+                        </div>
+
                         {/* Main Content Grid */}
                         <div className="grid grid-cols-1 gap-6 mt-6">
                             {/* Case List takes full width now as sidebar widgets were removed/moved */}
@@ -583,7 +685,7 @@ const App: React.FC = () => {
                 Please cross-reference all findings with official Supreme Court of Canada judgments.
              </p>
              <p className="text-[10px] text-slate-300 leading-relaxed max-w-2xl mx-auto border-t border-slate-100 pt-4">
-                Primary Data Source: Paul-Erik Veel, Katie Glowach, Benjamin Alarie, and Andrew Green, Lenczner Slaght Supreme Court of Canada Database, Release [2023.01]. Available at: <a href="http://www.supremecourtdatabase.com" className="hover:text-slate-500 transition-colors" target="_blank" rel="noopener noreferrer">www.supremecourtdatabase.com</a>.
+                Primary Data Source: Paul-Erik Veel, Katie Glowach, Benjamin Alarie, and Andrew Green, Lenczner Slaght Supreme Court of Canada Database, Release [2026.01]. Available at: <a href="http://www.supremecourtdatabase.com" className="hover:text-slate-500 transition-colors" target="_blank" rel="noopener noreferrer">www.supremecourtdatabase.com</a>.
              </p>
              <div className="mt-4 flex justify-center gap-6">
                 <button onClick={() => setShowTerms(true)} className="underline hover:text-slate-600 transition-colors">

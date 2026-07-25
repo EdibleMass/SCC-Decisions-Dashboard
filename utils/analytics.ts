@@ -22,16 +22,22 @@ export interface MatrixCell {
   agreed: number; // Count of agreements
 }
 
-export const generateNetworkData = (
-  votes: VoteData[], 
-  justices: JusticeData[],
-  minSharedCases: number = 10
-): { nodes: GraphNode[]; links: GraphLink[] } => {
-  
-  const nodes: GraphNode[] = justices.map(j => ({ id: j.justiceID, name: j.justiceName }));
-  const links: GraphLink[] = [];
+// Which cases feed the agreement metrics.
+//
+// 'all'     — every case. 59.7% of the corpus is unanimous, so every pair of
+//             justices "agrees" in three-fifths of cases before any judicial
+//             preference enters. Rates cluster near 1.0 and the graph reads as
+//             uniformly hot, which is why the threshold defaults to 0.90.
+// 'divided' — only cases where the panel actually split. This is the
+//             discriminating measure: it asks "when the Court disagreed, who
+//             sided with whom?"
+export type AgreementScope = 'all' | 'divided';
 
-  // 1. Group votes by Case
+// Group votes by case, optionally keeping only cases where the panel split.
+// Divided-ness is derived from the votes themselves rather than the case-level
+// decisionUnanimous flag so it stays consistent with whatever slice of votes
+// the caller passed in.
+const groupVotesByCase = (votes: VoteData[], scope: AgreementScope): Map<string, VoteData[]> => {
   const casesMap = new Map<string, VoteData[]>();
   votes.forEach(v => {
     if (!casesMap.has(v.primaryCaseID)) {
@@ -39,6 +45,40 @@ export const generateNetworkData = (
     }
     casesMap.get(v.primaryCaseID)?.push(v);
   });
+
+  if (scope === 'all') return casesMap;
+
+  const divided = new Map<string, VoteData[]>();
+  casesMap.forEach((caseVotes, caseId) => {
+    let hasMajority = false;
+    let hasDissent = false;
+    for (const v of caseVotes) {
+      if (v.justiceWithMajorityResult === VoteResult.Majority) hasMajority = true;
+      else if (v.justiceWithMajorityResult === VoteResult.Dissent) hasDissent = true;
+      if (hasMajority && hasDissent) break;
+    }
+    if (hasMajority && hasDissent) divided.set(caseId, caseVotes);
+  });
+  return divided;
+};
+
+// Number of cases in a vote slice that were actually divided. Used to warn the
+// user when a filter leaves too little signal to interpret.
+export const countDividedCases = (votes: VoteData[]): number =>
+  groupVotesByCase(votes, 'divided').size;
+
+export const generateNetworkData = (
+  votes: VoteData[],
+  justices: JusticeData[],
+  minSharedCases: number = 10,
+  scope: AgreementScope = 'all'
+): { nodes: GraphNode[]; links: GraphLink[] } => {
+
+  const nodes: GraphNode[] = justices.map(j => ({ id: j.justiceID, name: j.justiceName }));
+  const links: GraphLink[] = [];
+
+  // 1. Group votes by Case
+  const casesMap = groupVotesByCase(votes, scope);
 
   // 2. Calculate pairwise agreement
   const pairStats = new Map<string, { agreed: number; total: number }>();
@@ -97,18 +137,13 @@ export const generateNetworkData = (
 
 export const generateMatrixData = (
   votes: VoteData[],
-  justices: JusticeData[]
+  justices: JusticeData[],
+  scope: AgreementScope = 'all'
 ): MatrixCell[] => {
   const cells: MatrixCell[] = [];
-  
+
   // 1. Group votes by Case
-  const casesMap = new Map<string, VoteData[]>();
-  votes.forEach(v => {
-    if (!casesMap.has(v.primaryCaseID)) {
-      casesMap.set(v.primaryCaseID, []);
-    }
-    casesMap.get(v.primaryCaseID)?.push(v);
-  });
+  const casesMap = groupVotesByCase(votes, scope);
 
   // 2. Initialize pair stats map for ALL pairs (including self)
   // We need a key like "ID1|ID2" to store stats

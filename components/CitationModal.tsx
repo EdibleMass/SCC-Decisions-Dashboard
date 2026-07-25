@@ -10,15 +10,15 @@ const CitationModal: React.FC<CitationModalProps> = ({ onClose }) => {
   const citations = [
     {
       label: "Visualizations & Interactive Tools",
-      text: "Zhang, Kevin. (2025). SCC Decisions Dashboard (v1.3.1) [Web Application]."
+      text: "Zhang, Kevin. (2026). SCC Decisions Dashboard (v2.0.0) [Web Application]."
     },
     {
       label: "Underlying Data",
-      text: "Veel, P.-E., Glowach, K., Alarie, B., & Green, A. (2023). Lenczner Slaght Supreme Court of Canada Database (Release 2023.01). www.supremecourtdatabase.com."
+      text: "Veel, P.-E., Glowach, K., Alarie, B., & Green, A. (2026). Lenczner Slaght Supreme Court of Canada Database (Release 2026.01). www.supremecourtdatabase.com."
     },
     {
       label: "Example Footnote",
-      text: "Generated using 'SCC Decisions Dashboard' (2025) by K. Zhang, utilizing data from the Lenczner Slaght Supreme Court Database."
+      text: "Generated using 'SCC Decisions Dashboard' (2026) by K. Zhang, utilizing data from the Lenczner Slaght Supreme Court Database."
     }
   ];
 

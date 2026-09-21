@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { GraphNode, GraphLink } from '../utils/analytics';
+import { useElementSize } from '../utils/useElementSize';
 
 interface NetworkGraphProps {
   nodes: GraphNode[];
@@ -123,27 +124,14 @@ const detectCommunities = (nodes: any[], links: any[]) => {
 
 const NetworkGraph: React.FC<NetworkGraphProps> = ({ nodes, links, threshold, onThresholdChange, isEraSelected }) => {
   const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerRef, containerSize] = useElementSize<HTMLDivElement>();
   const tooltipRef = useRef<HTMLDivElement>(null);
   
   // State for dimension
-  const [containerSize, setContainerSize] = useState({ width: 800, height: 800 });
   
   // Refs for Zoom Control
   const zoomBehavior = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const svgSelection = useRef<d3.Selection<SVGSVGElement, unknown, null, undefined> | null>(null);
-
-  // Resize observer
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const resizeObserver = new ResizeObserver((entries) => {
-        for (let entry of entries) {
-            setContainerSize({ width: entry.contentRect.width, height: entry.contentRect.height });
-        }
-    });
-    resizeObserver.observe(containerRef.current);
-    return () => resizeObserver.disconnect();
-  }, []);
 
   useEffect(() => {
     if (!isEraSelected || !svgRef.current || nodes.length === 0) return;

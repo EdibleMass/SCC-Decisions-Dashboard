@@ -1,61 +1,21 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { CaseData, IssueData } from '../types';
 
 interface WaitTimeEstimatorProps {
   cases: CaseData[];
-  issues: IssueData[];
+  /** Accepted for call-site symmetry; filtering now happens upstream. */
+  issues?: IssueData[];
 }
 
-const ISSUE_AREAS: Record<string, string> = {
-  '1': 'Aboriginal Law',
-  '2': 'Administrative Law',
-  '3': 'Citizenship & Immigration',
-  '4': 'Civil Procedure',
-  '5': 'Civil Rights / Human Rights',
-  '6': 'Commercial Law',
-  '7': 'Contracts',
-  '8': 'Criminal Law',
-  '9': 'Division of Powers',
-  '10': 'Equity & Trusts',
-  '11': 'Family Law',
-  '12': 'Intellectual Property',
-  '13': 'International Law',
-  '14': 'Labour Law',
-  '15': 'Privacy & Access to Info',
-  '16': 'Property Law',
-  '17': 'Regulatory Law',
-  '18': 'Tax Law',
-  '19': 'Tort Law',
-  '20': 'Wills & Estates',
-  '21': 'Miscellaneous'
-};
-
-const WaitTimeEstimator: React.FC<WaitTimeEstimatorProps> = ({ cases, issues }) => {
-  const [selectedArea, setSelectedArea] = useState<string>('All');
-
+// `cases` arrives already sliced by era and legal area — this panel used to
+// carry its own area dropdown, which could disagree with the dashboard-wide
+// filter now shown in the control ribbon.
+const WaitTimeEstimator: React.FC<WaitTimeEstimatorProps> = ({ cases }) => {
   const stats = useMemo(() => {
-    // 1. Build Map of CaseID -> IssueArea
-    const caseAreas = new Map<string, Set<string>>();
-    issues.forEach(i => {
-        if (!i.primaryCaseID || !i.issueAreaCan) return;
-        const cid = i.primaryCaseID;
-        const area = String(i.issueAreaCan).trim();
-        if (!caseAreas.has(cid)) {
-            caseAreas.set(cid, new Set());
-        }
-        caseAreas.get(cid)!.add(area);
-    });
-
-    // 2. Process Cases
     const daysData: number[] = [];
-    
-    cases.forEach(c => {
-        if (selectedArea !== 'All') {
-            const areas = caseAreas.get(c.primaryCaseID);
-            if (!areas || !areas.has(selectedArea)) return;
-        }
 
+    cases.forEach(c => {
         if (!c.dateArgument || !c.dateDecisionGiven) return;
         
         const dArg = new Date(c.dateArgument);
@@ -99,7 +59,7 @@ const WaitTimeEstimator: React.FC<WaitTimeEstimatorProps> = ({ cases, issues }) 
 
     return { median, average, histogram, total };
 
-  }, [cases, issues, selectedArea]);
+  }, [cases]);
 
   const medianMonths = (stats.median / 30.44).toFixed(1);
 
@@ -124,19 +84,6 @@ const WaitTimeEstimator: React.FC<WaitTimeEstimatorProps> = ({ cases, issues }) 
           Time from Oral Argument to Judgment.
         </p>
 
-        {/* Filter */}
-        <select
-            value={selectedArea}
-            onChange={(e) => setSelectedArea(e.target.value)}
-            className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-sm focus:border-scc-blue focus:ring-1 focus:ring-scc-blue"
-        >
-            <option value="All">All Legal Areas</option>
-            {Object.entries(ISSUE_AREAS).sort((a,b) => a[1].localeCompare(b[1])).map(([code, label]) => (
-                <option key={code} value={code}>
-                    {label}
-                </option>
-            ))}
-        </select>
       </div>
 
       <div className="flex items-end gap-2 mb-6 border-b border-slate-100 pb-4">

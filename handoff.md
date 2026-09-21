@@ -191,6 +191,45 @@ Real output for Chevron: `2014 ONCA 40` and `2013 ONCA 758` (genuine appellate h
 
 ---
 
+### 3.9 Issue-area filter (global slice)
+
+A dashboard-wide legal-area filter sits beside the era selector in the control ribbon; the two compose, and everything below honours both.
+
+**Data shape that drove the design:**
+- All 6,415 cases carry a coded area, so there is no "unknown" bucket.
+- Only **401 cases (6.3%)** span more than one area, max 3 — so it is nearly a partition, but area counts deliberately sum to 6,829, not 6,415. The picker says so.
+- The distribution is severely skewed: Criminal Law 1,802 cases, Privacy & Access to Info 29.
+
+⚠️ **The reason for the guardrail.** Crossed with the era filter, **34% of area×era cells hold fewer than 10 cases**. Case-level panels degrade gracefully at that size; pairwise measures (agreement, coalitions, absence) do not, because they are computed over cases two justices heard *together*.
+
+The chosen behaviour is **filter everywhere + warn** (consistent semantics, honest degradation), implemented in `components/SliceWarning.tsx`:
+- slice < 30 → red "Too few decisions to interpret"
+- slice < 150 → amber "Small sample"
+- placed above *Bench Alignment* and *Composition & Coalitions*
+
+**Wiring in App.tsx** — the derivation chain matters:
+- `eraCases` / `eraIssues` — era only. The Subject Matter treemap reads these so it always shows the full mix of areas and can act as the picker.
+- `filteredCases` — era ∩ area. Everything else derives from this, so `filteredVotes` and `activeJustices` inherit the slice automatically.
+- `filteredIssues` — narrowed to the selected area too, so issue-level panels report on *that area's* issues rather than every issue raised by a case that merely touches it.
+
+**Consolidation.** Wait Time Estimator had its own private area dropdown that could disagree with the global filter; it was removed and the panel now takes pre-filtered data. The treemap is click-to-filter (click the active tile to clear), with a gold stroke marking the selection.
+
+Verified: median wait time 9 months overall, 3 for Criminal Law, 7 for Aboriginal Law — the filter genuinely recomputes rather than just relabelling.
+
+### 3.10 Hidden tabs
+
+`Court System` and `US Comparative` are **hidden** via a `hidden: true` flag in `VIEW_TABS` (App.tsx). Both pages remain built, wired and working — only the tab is withheld. Remove the flag to restore either; nothing else needs to change.
+
+### 3.11 `utils/useElementSize.ts`
+
+The three d3 charts (treemap, network graph, agreement matrix) each hand-rolled a ResizeObserver that set size **only** from the observer callback, so the first paint ran at 0×0 and the chart stayed blank if the callback never arrived. They now share `useElementSize`, which measures synchronously on mount and after each render, keeping the observer for size changes that don't re-render the parent. An equality guard prevents update loops.
+
+⚠️ **Verifying charts in the Claude Code browser pane.** That pane runs with `document.visibilityState === "hidden"`, which means **`requestAnimationFrame` never fires and `ResizeObserver` never delivers**. Consequences:
+- d3 transitions never progress, so elements stay at their enter state (`opacity: 0`) and charts look empty even when correct.
+- This is environmental, not a bug — real browsers animate normally.
+
+Verify chart *logic* through the DOM (node counts, bound data, attributes) rather than screenshots. `useElementSize` makes sizing work there; transitions still will not.
+
 ## 4. Architecture notes
 
 - `App.tsx` is still a ~800-line monolith holding all state. `ViewMode` is now a 4-way union with a `VIEW_TABS` array; SCC-derived views and external-corpus views are visually separated by a divider in the nav.

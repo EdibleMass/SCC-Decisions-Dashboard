@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { JusticeData } from '../types';
 import { MatrixCell } from '../utils/analytics';
+import { useElementSize } from '../utils/useElementSize';
 
 interface AgreementMatrixProps {
   data: MatrixCell[];
@@ -21,28 +22,12 @@ const abbreviateName = (name: string) => {
 
 const AgreementMatrix: React.FC<AgreementMatrixProps> = ({ data, justices, isEraSelected }) => {
   const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerRef, containerSize] = useElementSize<HTMLDivElement>();
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
   // Refs for Zoom Control
   const zoomBehavior = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const svgSelection = useRef<d3.Selection<SVGSVGElement, unknown, null, undefined> | null>(null);
-
-  // Resize Observer to handle dynamic container size (fixes initial zoom bug)
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setContainerSize({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        });
-      }
-    });
-    resizeObserver.observe(containerRef.current);
-    return () => resizeObserver.disconnect();
-  }, [isEraSelected]); // Re-bind if era selection toggles the view
 
   useEffect(() => {
     if (!isEraSelected || !svgRef.current || !containerRef.current || justices.length === 0 || containerSize.width === 0) return;

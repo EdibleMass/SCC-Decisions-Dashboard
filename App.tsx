@@ -25,6 +25,8 @@ import CitationModal from './components/CitationModal';
 import UserGuideModal from './components/UserGuideModal';
 import ChangelogModal from './components/ChangelogModal';
 import AgreementScopeToggle from './components/AgreementScopeToggle';
+import IssueAreaFilter from './components/IssueAreaFilter';
+import SliceWarning from './components/SliceWarning';
 import IdeologyTimeline from './components/IdeologyTimeline';
 import JusticeDirectionChart from './components/JusticeDirectionChart';
 import PanelAbsence from './components/PanelAbsence';
@@ -62,12 +64,17 @@ const CHARTER_IDS = ['laskin', 'dickson', 'lamer', 'mclachlin', 'wagner'];
 // support the same claims as the coded SCC vote data.
 type ViewMode = 'overview' | 'justice' | 'courts' | 'comparative';
 
-const VIEW_TABS: { id: ViewMode; label: string; group: 'scc' | 'wider' }[] = [
+const VIEW_TABS: { id: ViewMode; label: string; group: 'scc' | 'wider'; hidden?: boolean }[] = [
   { id: 'overview', label: 'Court Overview', group: 'scc' },
   { id: 'justice', label: 'Justices & Comparison', group: 'scc' },
-  { id: 'courts', label: 'Court System', group: 'wider' },
-  { id: 'comparative', label: 'US Comparative', group: 'wider' },
+  // Hidden for now. Both pages are built, wired and working — only the tab is
+  // withheld. Flip `hidden` to false (or delete the flag) to bring either back;
+  // nothing else needs to change.
+  { id: 'courts', label: 'Court System', group: 'wider', hidden: true },
+  { id: 'comparative', label: 'US Comparative', group: 'wider', hidden: true },
 ];
+
+const VISIBLE_TABS = VIEW_TABS.filter(t => !t.hidden);
 
 const App: React.FC = () => {
   // Navigation State
@@ -98,6 +105,8 @@ const App: React.FC = () => {
   const [isComparing, setIsComparing] = useState<boolean>(false);
   const [agreementThreshold, setAgreementThreshold] = useState<number>(0.90); // Default to 90%
   const [selectedEra, setSelectedEra] = useState<Era | null>(null);
+  // Issue-area slice. 'All' or an issueAreaCan code (see ISSUE_AREAS).
+  const [selectedIssueArea, setSelectedIssueArea] = useState<string>('All');
   // Which cases feed the agreement metrics. 'divided' conditions on cases where
   // the panel actually split — see AgreementScope in utils/analytics.
   const [agreementScope, setAgreementScope] = useState<AgreementScope>('all');
@@ -114,8 +123,10 @@ const App: React.FC = () => {
     load();
   }, []);
 
-  // Filtered Data based on selected Era (Date Range)
-  const filteredCases = useMemo(() => {
+  // Cases in the selected era, before any issue-area slice. The Subject Matter
+  // treemap reads this so it keeps showing the full mix of areas and can act as
+  // the area picker.
+  const eraCases = useMemo(() => {
     if (!selectedEra) return data.cases;
 
     const start = new Date(selectedEra.start).getTime();
@@ -127,6 +138,59 @@ const App: React.FC = () => {
       return !isNaN(d) && d >= start && d <= end;
     });
   }, [data.cases, selectedEra]);
+
+  // Issues belonging to the era slice, unrestricted by area (for the treemap).
+  const eraIssues = useMemo(() => {
+    const ids = new Set(eraCases.map(c => c.primaryCaseID));
+    return data.issues.filter(i => ids.has(i.primaryCaseID));
+  }, [data.issues, eraCases]);
+
+  // Case IDs touching the selected area. A case can carry up to three areas
+  // (6.3% of the corpus do), so this is "cases that touch this area", not a
+  // partition — area counts deliberately sum to more than the corpus total.
+  const caseIdsInArea = useMemo(() => {
+    if (selectedIssueArea === 'All') return null;
+    const ids = new Set<string>();
+    for (const i of data.issues) {
+      if (i.issueAreaCan && i.issueAreaCan.trim() === selectedIssueArea) {
+        ids.add(i.primaryCaseID);
+      }
+    }
+    return ids;
+  }, [data.issues, selectedIssueArea]);
+
+  // The working slice: era AND issue area. Everything downstream (votes,
+  // active justices, every panel) derives from this, so both filters compose.
+  const filteredCases = useMemo(() => {
+    if (!caseIdsInArea) return eraCases;
+    return eraCases.filter(c => caseIdsInArea.has(c.primaryCaseID));
+  }, [eraCases, caseIdsInArea]);
+
+  // Issues for the working slice. When an area is selected these are narrowed
+  // to that area too, so issue-level panels report on the selected area rather
+  // than on every issue raised by a case that happens to touch it.
+  const filteredIssues = useMemo(() => {
+    const ids = new Set(filteredCases.map(c => c.primaryCaseID));
+    return data.issues.filter(i =>
+      ids.has(i.primaryCaseID) &&
+      (selectedIssueArea === 'All' || (i.issueAreaCan && i.issueAreaCan.trim() === selectedIssueArea))
+    );
+  }, [data.issues, filteredCases, selectedIssueArea]);
+
+  // Case counts per area within the current era, for the picker's labels.
+  const areaCounts = useMemo(() => {
+    const counts = new Map<string, Set<string>>();
+    const ids = new Set(eraCases.map(c => c.primaryCaseID));
+    for (const i of data.issues) {
+      const a = i.issueAreaCan?.trim();
+      if (!a || !ids.has(i.primaryCaseID)) continue;
+      if (!counts.has(a)) counts.set(a, new Set());
+      counts.get(a)!.add(i.primaryCaseID);
+    }
+    const out: Record<string, number> = {};
+    counts.forEach((v, k) => { out[k] = v.size; });
+    return out;
+  }, [data.issues, eraCases]);
 
   const filteredVotes = useMemo(() => {
     const caseIds = new Set(filteredCases.map(c => c.primaryCaseID));
@@ -251,9 +315,9 @@ const App: React.FC = () => {
                {/* View Tabs. A divider separates views built on the coded SCC
                    dataset from those reading other corpora. */}
                <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-lg">
-                  {VIEW_TABS.map((tab, i) => (
+                  {VISIBLE_TABS.map((tab, i) => (
                     <React.Fragment key={tab.id}>
-                      {i > 0 && VIEW_TABS[i - 1].group !== tab.group && (
+                      {i > 0 && VISIBLE_TABS[i - 1].group !== tab.group && (
                         <span className="w-px h-5 bg-slate-600 mx-1" aria-hidden="true" />
                       )}
                       <button
@@ -318,7 +382,7 @@ const App: React.FC = () => {
               <div className="flex flex-col gap-2 w-full xl:w-auto">
                  <div className="flex items-baseline gap-4 mb-1">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                        Select Court Era ({filteredCases.length} Decisions) <span className="text-[10px] text-emerald-500 normal-case tracking-normal ml-1 font-semibold opacity-90">*Dataset updated to 2025</span>
+                        Select Court Era ({eraCases.length} Decisions) <span className="text-[10px] text-emerald-500 normal-case tracking-normal ml-1 font-semibold opacity-90">*Dataset updated to 2025</span>
                     </span>
                     <button 
                         onClick={() => setSelectedEra(null)}
@@ -376,6 +440,18 @@ const App: React.FC = () => {
                  </div>
               </div>
 
+              {/* Middle: Issue Area slice. Composes with the era selector —
+                  everything below honours both. */}
+              <div className="w-full xl:w-auto border-t xl:border-t-0 xl:border-l border-slate-200 pt-4 xl:pt-0 xl:pl-6">
+                <IssueAreaFilter
+                  value={selectedIssueArea}
+                  onChange={setSelectedIssueArea}
+                  counts={areaCounts}
+                  eraTotal={eraCases.length}
+                  sliceTotal={filteredCases.length}
+                />
+              </div>
+
               {/* Right: Justice Selectors (ONLY ON JUSTICE VIEW) */}
               {currentView === 'justice' && (
                   <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto mt-4 xl:mt-0 animate-fade-in-left">
@@ -428,7 +504,7 @@ const App: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
                         {/* Row 1: Key Metrics */}
                         <div className="lg:col-span-8 h-[32rem]">
-                             <WaitTimeEstimator cases={filteredCases} issues={data.issues} />
+                             <WaitTimeEstimator cases={filteredCases} issues={filteredIssues} />
                         </div>
                         <div className="lg:col-span-4 h-[32rem]">
                              {/* Expanded Appellate Report Card */}
@@ -437,7 +513,12 @@ const App: React.FC = () => {
                         
                         {/* Row 2: Subject Matter & Reversal */}
                         <div className="lg:col-span-8 h-[32rem]">
-                             <SubjectMatterTreemap cases={filteredCases} issues={data.issues} />
+                             <SubjectMatterTreemap
+                               cases={eraCases}
+                               issues={eraIssues}
+                               selectedArea={selectedIssueArea}
+                               onSelectArea={setSelectedIssueArea}
+                             />
                         </div>
                          <div className="lg:col-span-4 h-[32rem]">
                              <ReversalRateChart cases={filteredCases} />
@@ -452,7 +533,7 @@ const App: React.FC = () => {
                              />
                         </div>
                         <div className="lg:col-span-4 h-[32rem]">
-                             <CrownWinChart cases={filteredCases} appellants={data.appellants} issues={data.issues} />
+                             <CrownWinChart cases={filteredCases} appellants={data.appellants} issues={filteredIssues} />
                         </div>
                         
                         {/* Row 4: Charter & Leaderboard */}
@@ -476,7 +557,7 @@ const App: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                             <div className="lg:col-span-7 h-[34rem]">
-                                <IdeologyTimeline cases={filteredCases} issues={data.issues} />
+                                <IdeologyTimeline cases={filteredCases} issues={filteredIssues} />
                             </div>
                             <div className="lg:col-span-5 h-[34rem]">
                                 <JusticeDirectionChart votes={filteredVotes} justices={data.justices} />
@@ -490,6 +571,13 @@ const App: React.FC = () => {
                             <h2 className="text-2xl font-serif font-bold text-slate-900">Composition & Coalitions</h2>
                             <span className="text-sm text-slate-500 italic">Who sat, and whose reasons they signed</span>
                         </div>
+
+                        <SliceWarning
+                            sliceTotal={filteredCases.length}
+                            selectedArea={selectedIssueArea}
+                            onClear={() => setSelectedIssueArea('All')}
+                            subject="absence and coalition counts"
+                        />
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                             <div className="lg:col-span-6 h-[34rem]">
                                 <PanelAbsence
@@ -508,6 +596,13 @@ const App: React.FC = () => {
                     {/* CONSENSUS & ALIGNMENT */}
                     <div className="border-t border-slate-200 pt-8 mt-8">
                         <h2 className="text-2xl font-serif font-bold text-slate-900 mb-4">Bench Alignment & Consensus</h2>
+
+                        <SliceWarning
+                            sliceTotal={filteredCases.length}
+                            selectedArea={selectedIssueArea}
+                            onClear={() => setSelectedIssueArea('All')}
+                            subject="pairwise agreement rates"
+                        />
 
                         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
                             <AgreementScopeToggle
@@ -629,9 +724,9 @@ const App: React.FC = () => {
 
                         {/* Stats Row */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <JusticeStats justiceName={getJusticeName(selectedJustice1)} votes={votes1} issues={data.issues} cases={filteredCases} />
+                            <JusticeStats justiceName={getJusticeName(selectedJustice1)} votes={votes1} issues={filteredIssues} cases={filteredCases} />
                             {isComparing && selectedJustice2 ? (
-                                <JusticeStats justiceName={getJusticeName(selectedJustice2)} votes={votes2} issues={data.issues} cases={filteredCases} />
+                                <JusticeStats justiceName={getJusticeName(selectedJustice2)} votes={votes2} issues={filteredIssues} cases={filteredCases} />
                             ) : (
                                 <div className="hidden lg:block bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 p-8 flex items-center justify-center text-slate-400">
                                     <div className="text-center">

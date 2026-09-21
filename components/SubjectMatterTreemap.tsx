@@ -2,10 +2,15 @@ import React, { useMemo, useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { CaseData, IssueData } from '../types';
 import { ISSUE_AREAS } from '../utils/constants';
+import { useElementSize } from '../utils/useElementSize';
 
 interface SubjectMatterTreemapProps {
   cases: CaseData[];
   issues: IssueData[];
+  /** Active dashboard-wide area filter ('All' or an issueAreaCan code). */
+  selectedArea?: string;
+  /** Clicking a tile sets the dashboard-wide area filter. */
+  onSelectArea?: (code: string) => void;
 }
 
 const COLORS = [
@@ -23,29 +28,29 @@ const truncate = (str: string, n: number) => {
     return (str.length > n) ? str.substring(0, n-1) + '..' : str;
 };
 
-const SubjectMatterTreemap: React.FC<SubjectMatterTreemapProps> = ({ cases, issues }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+const SubjectMatterTreemap: React.FC<SubjectMatterTreemapProps> = ({ cases, issues, selectedArea = 'All', onSelectArea }) => {
+  const [containerRef, dimensions] = useElementSize<HTMLDivElement>();
   const svgRef = useRef<SVGSVGElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   // 1. Process Data
   const data = useMemo(() => {
     // Filter issues to only those in the current case list
     const caseIds = new Set(cases.map(c => c.primaryCaseID));
     
-    const counts = new Map<string, number>();
-    
+    const counts = new Map<string, { code: string; name: string; value: number }>();
+
     issues.forEach(i => {
        if (i.primaryCaseID && caseIds.has(i.primaryCaseID) && i.issueAreaCan) {
            const areaCode = i.issueAreaCan.trim();
            const areaName = ISSUE_AREAS[areaCode] || `Unknown (${areaCode})`;
-           counts.set(areaName, (counts.get(areaName) || 0) + 1);
+           const entry = counts.get(areaCode);
+           if (entry) entry.value += 1;
+           else counts.set(areaCode, { code: areaCode, name: areaName, value: 1 });
        }
     });
 
-    const result = Array.from(counts.entries())
-        .map(([name, value]) => ({ name, value }))
+    const result = Array.from(counts.values())
         .sort((a, b) => b.value - a.value); // Sort desc for stability
 
     return result;
@@ -53,21 +58,6 @@ const SubjectMatterTreemap: React.FC<SubjectMatterTreemapProps> = ({ cases, issu
 
   // Calculate total for percentage
   const totalDecisions = useMemo(() => data.reduce((acc, curr) => acc + curr.value, 0), [data]);
-
-  // 2. Measure Container
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setDimensions({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        });
-      }
-    });
-    resizeObserver.observe(containerRef.current);
-    return () => resizeObserver.disconnect();
-  }, []);
 
   // 3. Render D3 Chart
   useEffect(() => {
@@ -125,6 +115,7 @@ const SubjectMatterTreemap: React.FC<SubjectMatterTreemapProps> = ({ cases, issu
         .attr("stroke-width", 1)
         .attr("rx", 4);
 
+
     enterGroup.append("text")
         .attr("class", "label-name")
         .attr("text-anchor", "middle")
@@ -149,13 +140,27 @@ const SubjectMatterTreemap: React.FC<SubjectMatterTreemapProps> = ({ cases, issu
     // MERGE (Update existing + new)
     const merged = nodes.merge(enterGroup);
 
+    // Tiles double as the area picker, so the whole node is clickable. Bound on
+    // the merged selection so the handler always closes over the current
+    // selectedArea rather than the value at enter time.
+    merged
+        .style("cursor", onSelectArea ? "pointer" : "default")
+        .on("click", (_event, d) => {
+            if (!onSelectArea) return;
+            // Clicking the active area clears the filter.
+            onSelectArea(selectedArea === d.data.code ? 'All' : d.data.code);
+        });
+
     // Transition Group Position
     merged.transition(t)
         .attr("transform", d => `translate(${d.x0},${d.y0})`)
-        .style("opacity", 1);
+        .style("opacity", d =>
+            selectedArea === 'All' || selectedArea === d.data.code ? 1 : 0.35);
 
     // Transition Rect Size & Color
     merged.select("rect")
+        .attr("stroke", d => (selectedArea === d.data.code ? '#C5A900' : '#fff'))
+        .attr("stroke-width", d => (selectedArea === d.data.code ? 3 : 1))
         .transition(t)
         .attr("width", d => Math.max(0, d.x1 - d.x0))
         .attr("height", d => Math.max(0, d.y1 - d.y0))
@@ -215,7 +220,7 @@ const SubjectMatterTreemap: React.FC<SubjectMatterTreemapProps> = ({ cases, issu
             d3.select(tooltipRef.current).style("opacity", 0);
         });
 
-  }, [data, dimensions, totalDecisions]);
+  }, [data, dimensions, totalDecisions, selectedArea, onSelectArea]);
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200 h-full flex flex-col overflow-hidden relative">

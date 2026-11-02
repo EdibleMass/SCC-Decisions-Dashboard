@@ -1,0 +1,14 @@
+# Files not uploaded when deploying with `gcloud run deploy --source .`
+.gcloudignore
+.git
+.gitignore
+.claude
+node_modules
+dist
+.env
+.env.*
+
+# The live site reads its data from the GCS bucket, so the local CSV
+# snapshots (used only by `npm run dev` and the verify scripts) stay behind
+dataset_*.csv
+FDG sample.png

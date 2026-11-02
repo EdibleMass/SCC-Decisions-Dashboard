@@ -1,0 +1,11 @@
+# Kept out of the Docker build (used when Cloud Build deploys from GitHub)
+.git
+.claude
+node_modules
+dist
+.env
+.env.*
+
+# The live site reads its data from the GCS bucket, not these local snapshots
+dataset_*.csv
+FDG sample.png

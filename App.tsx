@@ -55,6 +55,15 @@ const COURT_ERAS: Era[] = [
   { id: 'wagner', name: 'Wagner (2017-Present)', start: '2017-12-18', end: '2099-12-31' },
 ];
 
+// Era buttons show the Chief Justice's name at every width but the years only
+// from md up: with years attached the labels force each era row to wrap onto
+// several lines on narrow screens, and the sticky ribbon eats the viewport.
+// The full label stays available as the button's tooltip.
+const splitEraName = (name: string) => {
+  const m = name.match(/^(.*?)\s*(\(.*\))$/);
+  return m ? { justice: m[1], years: m[2] } : { justice: name, years: '' };
+};
+
 const PRE_CHARTER_IDS = ['rinfret', 'kerwin', 'taschereau', 'cartwright', 'fauteux', 'laskin'];
 const CHARTER_IDS = ['laskin', 'dickson', 'lamer', 'mclachlin', 'wagner'];
 
@@ -375,12 +384,12 @@ const App: React.FC = () => {
            coded SCC dataset and has no meaning for the external A2AJ corpus,
            so leaving it visible there would imply a filter that does nothing. */}
       <div className={`bg-white border-b border-slate-200 shadow-sm sticky top-20 z-40 ${currentView === 'courts' ? 'hidden' : ''}`}>
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-4">
-           <div className="flex flex-col xl:flex-row gap-6 items-start xl:items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-3">
+           <div className="flex flex-col xl:flex-row gap-4 xl:gap-6 items-start xl:items-center justify-between">
               
               {/* Left: Era Selector (Always Visible) */}
               <div className="flex flex-col gap-2 w-full xl:w-auto">
-                 <div className="flex items-baseline gap-4 mb-1">
+                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-1">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                         Select Court Era ({eraCases.length} Decisions) <span className="text-[10px] text-emerald-500 normal-case tracking-normal ml-1 font-semibold opacity-90">*Dataset updated to 2025</span>
                     </span>
@@ -392,9 +401,19 @@ const App: React.FC = () => {
                     >
                         All Eras
                     </button>
+
+                    {/* Issue Area slice, inline so it costs no extra ribbon height.
+                        Composes with the era selector — everything below honours both. */}
+                    <span className="hidden sm:block w-px h-5 bg-slate-200" aria-hidden="true" />
+                    <IssueAreaFilter
+                      value={selectedIssueArea}
+                      onChange={setSelectedIssueArea}
+                      counts={areaCounts}
+                      eraTotal={eraCases.length}
+                    />
                  </div>
                  
-                 <div className="flex flex-col gap-2">
+                 <div className="flex flex-col gap-1.5">
                     {/* Pre-Charter Row */}
                     <div className="flex flex-wrap gap-1 items-center">
                         <span className="text-[10px] text-slate-400 font-semibold w-16 uppercase">Pre-Charter</span>
@@ -404,6 +423,7 @@ const App: React.FC = () => {
                             return (
                                 <button
                                     key={`pre-${era.id}`}
+                                    title={era.name}
                                     onClick={() => setSelectedEra(era)}
                                     className={`px-2 py-1.5 text-xs font-medium rounded-md transition-all border ${
                                         selectedEra?.id === era.id
@@ -411,7 +431,8 @@ const App: React.FC = () => {
                                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                                     }`}
                                 >
-                                    {era.name}
+                                    {splitEraName(era.name).justice}
+                                    <span className="hidden md:inline"> {splitEraName(era.name).years}</span>
                                 </button>
                             );
                         })}
@@ -425,6 +446,7 @@ const App: React.FC = () => {
                              return (
                                 <button
                                     key={`charter-${era.id}`}
+                                    title={era.name}
                                     onClick={() => setSelectedEra(era)}
                                     className={`px-2 py-1.5 text-xs font-medium rounded-md transition-all border ${
                                         selectedEra?.id === era.id
@@ -432,7 +454,8 @@ const App: React.FC = () => {
                                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                                     }`}
                                 >
-                                    {era.name}
+                                    {splitEraName(era.name).justice}
+                                    <span className="hidden md:inline"> {splitEraName(era.name).years}</span>
                                 </button>
                             );
                         })}
@@ -440,24 +463,21 @@ const App: React.FC = () => {
                  </div>
               </div>
 
-              {/* Middle: Issue Area slice. Composes with the era selector —
-                  everything below honours both. */}
-              <div className="w-full xl:w-auto border-t xl:border-t-0 xl:border-l border-slate-200 pt-4 xl:pt-0 xl:pl-6">
-                <IssueAreaFilter
-                  value={selectedIssueArea}
-                  onChange={setSelectedIssueArea}
-                  counts={areaCounts}
-                  eraTotal={eraCases.length}
-                  sliceTotal={filteredCases.length}
-                />
-              </div>
-
               {/* Right: Justice Selectors (ONLY ON JUSTICE VIEW) */}
               {currentView === 'justice' && (
-                  <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto mt-4 xl:mt-0 animate-fade-in-left">
-                     <div className="relative w-full sm:w-64">
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Primary Justice</label>
+                  // One compact line, matching the Legal Area control: the label sits
+                  // beside the select rather than above it, because below xl this
+                  // block stacks under the era rows in the sticky ribbon.
+                  <div className="flex items-center gap-2 w-full xl:w-auto animate-fade-in-left">
+                     <label
+                        htmlFor="primary-justice"
+                        className="text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap"
+                     >
+                        Primary Justice
+                     </label>
+                     <div className="relative">
                         <select
+                            id="primary-justice"
                             value={selectedJustice1}
                             onChange={(e) => {
                                 setSelectedJustice1(e.target.value);
@@ -465,16 +485,26 @@ const App: React.FC = () => {
                                 setSelectedJustice2('');
                                 setIsComparing(false);
                             }}
-                            className="w-full pl-3 pr-10 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 focus:ring-2 focus:ring-scc-blue focus:border-scc-blue appearance-none transition-shadow"
+                            className={`appearance-none pl-2.5 pr-7 py-1 text-xs rounded-md border transition-colors cursor-pointer max-w-[16rem] focus:outline-none focus:ring-2 focus:ring-scc-blue ${
+                                selectedJustice1
+                                ? 'bg-blue-50 border-scc-blue text-scc-blue font-semibold'
+                                : 'bg-white border-slate-200 text-slate-600 font-medium hover:border-slate-300'
+                            }`}
                         >
                             <option value="">Select Justice...</option>
                             {activeJustices.map((j) => (
                                 <option key={j.justiceID} value={j.justiceID}>{j.justiceName}</option>
                             ))}
                         </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pt-5 pointer-events-none text-slate-500">
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                        </div>
+                        <svg
+                            className={`absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none ${selectedJustice1 ? 'text-scc-blue' : 'text-slate-400'}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                        </svg>
                      </div>
                   </div>
               )}

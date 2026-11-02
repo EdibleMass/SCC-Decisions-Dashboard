@@ -193,7 +193,26 @@ Real output for Chevron: `2014 ONCA 40` and `2013 ONCA 758` (genuine appellate h
 
 ### 3.9 Issue-area filter (global slice)
 
-A dashboard-wide legal-area filter sits beside the era selector in the control ribbon; the two compose, and everything below honours both.
+A dashboard-wide legal-area filter sits **inline in the era selector's header row** (after *All Eras*); the two compose, and everything below honours both.
+
+**Layout constraint — the ribbon is sticky.** Every pixel of its height is lost at every scroll position, so controls in it must cost a single line. The first version stacked a label row, a chip row, the select and a help paragraph, and below the `xl` breakpoint it dropped beneath the era rows. Measured ribbon height, before → after the compaction:
+
+| Viewport | View | Before | After |
+|---|---|---:|---:|
+| 1440 | Overview | 137 | 130 |
+| 1180 | Overview | 265 | 130 |
+| 700 | Overview | 333 | 162 |
+| 1180 | Justices | 219 | 173 |
+| 700 | Justices | 251 | 205 |
+
+(Justices *before* figures were taken after the area control was already inline, so they understate the original.) To get there:
+- The slice size is the selected option's own `(1,802)` count, which is exactly the era∩area slice, so the separate count line was dropped. The overlap note is now the select's tooltip.
+- The active state is the highlighted select plus a × clear button, replacing the chip row.
+- *Primary Justice* (Justices view) got the same one-line treatment.
+- Era buttons show only the Chief Justice's name below `md` (years return from `md` up and are always in the tooltip). With years attached, each era group wrapped onto two lines on narrow screens.
+- Ribbon padding `py-4` → `py-3`.
+
+Keep new ribbon controls to one line. If more room is needed, a collapse-on-scroll summary bar is the next step, not another stacked row.
 
 **Data shape that drove the design:**
 - All 6,415 cases carry a coded area, so there is no "unknown" bucket.
@@ -214,7 +233,7 @@ The chosen behaviour is **filter everywhere + warn** (consistent semantics, hone
 
 **Consolidation.** Wait Time Estimator had its own private area dropdown that could disagree with the global filter; it was removed and the panel now takes pre-filtered data. The treemap is click-to-filter (click the active tile to clear), with a gold stroke marking the selection.
 
-Verified: median wait time 9 months overall, 3 for Criminal Law, 7 for Aboriginal Law — the filter genuinely recomputes rather than just relabelling.
+Verified: median wait time **3.9 months overall, 2.3 for Criminal Law, 6.7 for Aboriginal Law** — the filter genuinely recomputes rather than just relabelling. (An earlier version of this note, and commit `fa35dd8`, said 9 / 3 / 7: the check's regex dropped the decimal part. That got the direction wrong for Aboriginal Law, which is slower than average, not faster.)
 
 ### 3.10 Hidden tabs
 

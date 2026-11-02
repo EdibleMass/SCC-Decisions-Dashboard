@@ -7,8 +7,20 @@ interface ChangelogModalProps {
 const ChangelogModal: React.FC<ChangelogModalProps> = ({ onClose }) => {
   const changes = [
     {
+      version: "v2.2.1",
+      desc: "Condensed the filter bar to give charts more screen space."
+    },
+    {
+      version: "v2.2.0",
+      desc: "Added filtering by legal area. Fixed charts occasionally loading blank."
+    },
+    {
+      version: "v2.1.0",
+      desc: "Added new analytics on ideological direction, panel absences, and opinion coalitions, plus external citation lookups on case details. Fixed a data-loading error affecting some case records."
+    },
+    {
       version: "v2.0.0",
-      desc: "Upgraded the database to the newest version of the Lenczer Slaght Supreme Court of Canada Dataset. Longitudinal scope expanded with decisions and voting metadata extending up to 2025. Updated all judicial indicators, timeline modules, and outcome predictors accordingly."
+      desc: "Upgraded the database to the newest version of the Lenczner Slaght Supreme Court of Canada Dataset. Longitudinal scope expanded with decisions and voting metadata extending up to 2025. Updated all judicial indicators, timeline modules, and outcome predictors accordingly."
     },
     {
       version: "v1.3.1",

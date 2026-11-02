@@ -10,7 +10,7 @@ const CitationModal: React.FC<CitationModalProps> = ({ onClose }) => {
   const citations = [
     {
       label: "Visualizations & Interactive Tools",
-      text: "Zhang, Kevin. (2026). SCC Decisions Dashboard (v2.0.0) [Web Application]."
+      text: "Zhang, Kevin. (2026). SCC Decisions Dashboard (v2.2.1) [Web Application]."
     },
     {
       label: "Underlying Data",

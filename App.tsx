@@ -372,7 +372,7 @@ const App: React.FC = () => {
                     className="flex-shrink-0 hidden md:flex bg-slate-800/50 p-1 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer"
                     title="View Changelog"
                 >
-                    <span className="px-3 py-1.5 text-xs font-mono text-slate-400">v2.0.0</span>
+                    <span className="px-3 py-1.5 text-xs font-mono text-slate-400">v2.2.1</span>
                 </button>
             </div>
           </div>

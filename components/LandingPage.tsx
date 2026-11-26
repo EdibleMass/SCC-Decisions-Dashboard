@@ -130,7 +130,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                     he Supreme Court of Canada shapes Canadian law, but it has decided thousands of cases since 1954 and no one can hold that many judgments in their head. Reading them one at a time tells you what each case decided. It won't show you how the judges' leanings shifted over the decades.
                 </p>
                 <p>
-                    For legal scholars and researchers, that is a problem of scale. Seeing the big shifts means stepping back from close reading and counting instead: who sided with whom, and who won. This dashboard does the counting for you and draws the result as a map of the Court.
+                    For legal scholars and researchers, that is a problem of scale. Seeing the big shifts means moving from close reading to computational distance: counting who sided with whom, and who won. This dashboard does the counting for you and maps the invisible topology of the law.
                 </p>
             </div>
         </div>
@@ -305,7 +305,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                         Win and loss counts say little about who sides with whom. To show alignment, the dashboard models the Court as a physical system: a force-directed graph in which agreement acts like gravity, pulling justices who vote together closer on the screen.
                     </p>
                     <p className="text-slate-600 leading-relaxed">
-                        Behind the graph is a modified label propagation algorithm. It passes over the votes repeatedly, and blocs settle out (for example, "The Laskin Court Dissenters"). It works from nothing but who decided with whom, so the structure it finds comes from the record and not from anyone's opinion of the judges.
+                        Behind the graph is a modified label propagation algorithm. It passes over the votes repeatedly, and blocs settle out (for example, "The Laskin Court Dissenters"). It works purely from decision adjacency (who decided with whom), so the structure it finds comes from the record and not from anyone's opinion of the judges.
                     </p>
                 </div>
             </div>
@@ -340,10 +340,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                         Phase III: Agreement and Ideology
                     </h2>
                     <p className="text-slate-600 mb-6 leading-relaxed">
-                        No judge decides alone. The dashboard's <strong>Agreement Matrix</strong> and <strong>Justice Comparator</strong> put numbers on the chemistry of the bench. They work through thousands of votes and report, for any two justices, exactly how often the pair landed on the same side. Alliances and ideological splits are easy to spot.
+                        No judge decides alone. The dashboard's <strong>Agreement Matrix</strong> and <strong>Justice Comparator</strong> put numbers on the chemistry of the bench. They iterate through thousands of voting vectors and report, for any two justices, exactly how often the pair landed on the same side. Alliances and ideological splits are easy to spot.
                     </p>
                     <p className="text-slate-600 leading-relaxed">
-                        The <strong>Ideological Compass</strong> does away with subjective labels. It plots a justice's voting record on a Cartesian plane, pro-state against pro-accused on one axis and pro-business against pro-individual on the other, with each axis drawn from its own areas of law, so you can see which way a judge has really drifted.
+                        The <strong>Ideological Compass</strong> does away with subjective labels. It plots a justice's voting record on a Cartesian plane, pro-state against pro-accused on one axis and pro-business against pro-individual on the other, with each axis drawn from its own areas of law, to reveal the true jurisprudential drift of a judge.
                     </p>
                 </div>
             </div>
@@ -475,7 +475,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                      <div className="text-sm font-mono uppercase tracking-widest text-blue-200">years of history</div>
                  </div>
                  <div className="p-4">
-                     <div className="text-5xl font-serif font-bold text-scc-gold mb-2">6,200+</div>
+                     <div className="text-5xl font-serif font-bold text-scc-gold mb-2">6,400+</div>
                      <div className="text-sm font-mono uppercase tracking-widest text-blue-200">Decisions Analyzed</div>
                  </div>
                  <div className="p-4">

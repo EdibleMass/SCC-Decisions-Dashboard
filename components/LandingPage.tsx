@@ -74,7 +74,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                 A Mapping of <br/> <span className="text-slate-400 italic font-serif">Canadian</span> Jurisprudence
             </h1>
             <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto font-light leading-relaxed">
-                An aggregated retrospective on the Supreme Court of Canada, translating over seventy years of case-law into an interactive dashboard.
+                Over seventy years of Supreme Court of Canada case law, every decision coded and charted in one interactive dashboard.
             </p>
             
             <div className="pt-8 flex flex-col items-center gap-4">
@@ -121,16 +121,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                 </h2>
                 <div className="h-1 w-20 bg-scc-gold mb-6"></div>
                 <p className="text-sm font-mono text-gray-500 uppercase tracking-wide">
-                    The Problem Space
+                    The Problem
                 </p>
             </div>
             <div className="md:w-2/3 prose prose-lg text-slate-600 leading-relaxed font-serif">
                 <p>
-                    <span className="float-left text-7xl font-bold text-slate-900 mr-4 mt-[-10px] font-serif">W</span>
-                    hile the Supreme Court shapes the legal landscape, the history of its decisions remains obscured by the sheer volume of text and decisions rendered. Thousands of cases and shifting judicial ideologies are difficult to parse through individual review alone.
+                    <span className="float-left text-7xl font-bold text-slate-900 mr-4 mt-[-10px] font-serif">T</span>
+                    he Supreme Court of Canada shapes Canadian law, but it has decided thousands of cases since 1954 and no one can hold that many judgments in their head. Reading them one at a time tells you what each case decided. It won't show you how the judges' leanings shifted over the decades.
                 </p>
                 <p>
-                    Legal scholars and researchers face a dilemma of scale. Detecting macro-level shifts requires moving from close reading to computational distance. It requires mapping the invisible topology of the law.
+                    For legal scholars and researchers, that is a problem of scale. Seeing the big shifts means stepping back from close reading and counting instead: who sided with whom, and who won. This dashboard does the counting for you and draws the result as a map of the Court.
                 </p>
             </div>
         </div>
@@ -188,13 +188,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                 </div>
                 <div className="md:w-1/2">
                     <h2 className="text-3xl font-serif font-bold text-slate-900 mb-4">
-                        Phase I: Structured Ingestion
+                        Phase I: Structuring the Data
                     </h2>
                     <p className="text-slate-600 mb-6 leading-relaxed">
-                        The first barrier to insight is structure.
+                        The raw data is a spreadsheet: thousands of flat rows of codes.
                     </p>
                     <p className="text-slate-600 leading-relaxed">
-                        The app transforms flat records into relational objects, creating a queryable "Digital Twin" of the Court. This enables the tracking of individual variables from appellant types to dissent patterns, with millisecond precision.
+                        The app links those rows together, so every case carries its votes and its parties with it. The result is a queryable "Digital Twin" of the Court. Pick any variable, whether that's the type of appellant or a pattern of dissents, and you can follow it across the whole record almost instantly.
                     </p>
                 </div>
             </div>
@@ -294,18 +294,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                         </div>
                      </div>
                      <p className="mt-2 text-center text-xs text-gray-400 font-mono">
-                         Fig. 2: Example topology of the McLachlin Court
+                         Fig. 2: Example alignment graph of the McLachlin Court
                      </p>
                 </div>
                 <div className="md:w-1/2">
                     <h2 className="text-3xl font-serif font-bold text-slate-900 mb-4">
-                        Phase II: Doctrinal Mapping
+                        Phase II: Mapping the Bench
                     </h2>
                     <p className="text-slate-600 mb-6 leading-relaxed">
-                        To visualize alignment, the dashboard moves beyond binary win/loss metrics. It employs a Force-Directed Graph algorithm to model the Court as a physical system, where judicial agreement acts as a gravitational force.
+                        Win and loss counts say little about who sides with whom. To show alignment, the dashboard models the Court as a physical system: a force-directed graph in which agreement acts like gravity, pulling justices who vote together closer on the screen.
                     </p>
                     <p className="text-slate-600 leading-relaxed">
-                        Underlying this visualization is a modified Label Propagation algorithm. This iterative process identifies communities of consensus (e.g., "The Laskin Court Dissenters") based purely on decision adjacency, revealing the hidden structure of the court without human bias.
+                        Behind the graph is a modified label propagation algorithm. It passes over the votes repeatedly, and blocs settle out (for example, "The Laskin Court Dissenters"). It works from nothing but who decided with whom, so the structure it finds comes from the record and not from anyone's opinion of the judges.
                     </p>
                 </div>
             </div>
@@ -337,13 +337,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                 </div>
                 <div className="md:w-1/2">
                     <h2 className="text-3xl font-serif font-bold text-slate-900 mb-4">
-                        Phase III: Judicial Ideology - Compass
+                        Phase III: Agreement and Ideology
                     </h2>
                     <p className="text-slate-600 mb-6 leading-relaxed">
-                        The judicial mind does not operate in isolation. The dashboard’s <strong>Agreement Matrix</strong> and <strong>Justice Comparator</strong> modules quantify the 'chemistry' of the bench. By iterating through thousands of voting vectors, the system calculates pairwise concurrence rates with floating-point precision, identifying alliances and ideological splits.
+                        No judge decides alone. The dashboard's <strong>Agreement Matrix</strong> and <strong>Justice Comparator</strong> put numbers on the chemistry of the bench. They work through thousands of votes and report, for any two justices, exactly how often the pair landed on the same side. Alliances and ideological splits are easy to spot.
                     </p>
                     <p className="text-slate-600 leading-relaxed">
-                        Furthermore, the <strong>Ideological Compass</strong> abandons subjective labeling. Instead, it mathematically maps voting records onto a Cartesian plane—plotting 'Pro-State' vs. 'Pro-Individual' alignments against specific legal issue areas—to reveal the true jurisprudential drift of a judge.
+                        The <strong>Ideological Compass</strong> does away with subjective labels. It plots a justice's voting record on a Cartesian plane, pro-state against pro-accused on one axis and pro-business against pro-individual on the other, with each axis drawn from its own areas of law, so you can see which way a judge has really drifted.
                     </p>
                 </div>
             </div>
@@ -355,11 +355,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
          <div className="max-w-5xl mx-auto">
              <div className="mb-12">
                  <h2 className="text-3xl font-serif font-bold text-white mb-4">
-                    Algorithm Spotlight: The Compass
+                    How the Compass Works
                  </h2>
                  <div className="h-1 w-20 bg-scc-blue mb-6"></div>
                  <p className="text-lg leading-relaxed max-w-3xl">
-                    Unlike traditional political spectrums, the Ideological Compass calculates judicial alignment dynamically based on case subject matter and voting direction. It is an aggregation of thousands of coded data points.
+                    A traditional political spectrum is a single line. The Ideological Compass has two axes, and it calculates a justice's position on each one on the fly from the subject matter of their cases and the direction of their votes. Thousands of coded data points go into it.
                  </p>
              </div>
 
@@ -371,7 +371,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                          <h3 className="text-xl font-bold text-white">Civil Liberties & Criminal</h3>
                      </div>
                      <p className="text-sm mb-4">
-                        Maps the tension between State Power and Individual Rights.
+                        Where a justice falls between state power and individual rights.
                      </p>
                      <ul className="space-y-2 text-xs font-mono text-slate-400">
                          <li className="flex justify-between border-b border-slate-700 pb-1">
@@ -394,7 +394,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                          <h3 className="text-xl font-bold text-white">Economic & Private Law</h3>
                      </div>
                      <p className="text-sm mb-4">
-                        Maps the tension between Corporate/Institutional interests and Individuals.
+                        Where a justice falls between corporate or institutional interests and individuals.
                      </p>
                      <ul className="space-y-2 text-xs font-mono text-slate-400">
                          <li className="flex justify-between border-b border-slate-700 pb-1">
@@ -446,13 +446,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                 </div>
                 <div className="md:w-1/2">
                     <h2 className="text-3xl font-serif font-bold text-slate-900 mb-4">
-                        Phase IV: Outcome Modeling
+                        Phase IV: Outcomes and Odds
                     </h2>
                     <p className="text-slate-600 mb-6 leading-relaxed">
-                        For the practitioner, predictability is paramount. The <strong>Wait Time Estimator</strong> utilizes historical docket data to generate probability distributions for judgment delivery times, segmented by legal area.
+                        Practitioners need to know what to expect. The <strong>Wait Time Estimator</strong> uses the Court's historical docket data to show how long judgments take to arrive. You get the whole distribution, and you can narrow it to one area of law.
                     </p>
                     <p className="text-slate-600 leading-relaxed">
-                        Simultaneously, the <strong>Reversal Rate Calculator</strong> and <strong>David vs. Goliath</strong> engine analyze case dispositions to determine the statistical likelihood of an appeal succeeding based on the lower court's jurisdiction and the specific pairing of litigating parties (e.g., Individual vs. Crown).
+                        The <strong>Reversal Rate Calculator</strong> and the <strong>David vs. Goliath</strong> calculator work from case dispositions to show how likely an appeal is to succeed, given the jurisdiction of the lower court and the particular pairing of parties (an individual against the Crown, say).
                     </p>
                 </div>
             </div>
@@ -465,7 +465,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
              <div className="text-center mb-16">
                  <h2 className="text-3xl font-serif font-bold mb-4">The Empirical Record</h2>
                  <p className="text-blue-200 max-w-2xl mx-auto">
-                     The dashboard aggregates data across eras, revealing the scale of the Court's work.
+                     Every era of the Court since 1954, in one place. The numbers give a sense of the scale.
                  </p>
              </div>
              
@@ -515,7 +515,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                          <h3 className="text-lg font-bold text-slate-900 mb-1 group-hover:text-scc-blue transition-colors">Lenczner Slaght Dataset</h3>
                          <p className="text-xs font-mono text-scc-gold mb-4 uppercase">Primary Data Source</p>
                          <p className="text-sm text-slate-600 leading-relaxed mb-4">
-                            The Supreme Court of Canada Database. A comprehensive dataset coding every SCC decision since 1954, maintained for empirical legal research.
+                            The Supreme Court of Canada Database codes every SCC decision since 1954 and is maintained for empirical legal research.
                          </p>
                          <p className="text-[10px] text-gray-400 font-mono leading-tight">
                             Paul-Erik Veel, Katie Glowach, Benjamin Alarie, and Andrew Green, Lenczner Slaght Supreme Court of Canada Database, Release [2026.01]. Available at: <a href="http://www.supremecourtdatabase.com" target="_blank" rel="noopener noreferrer" className="hover:text-scc-blue underline">www.supremecourtdatabase.com</a>

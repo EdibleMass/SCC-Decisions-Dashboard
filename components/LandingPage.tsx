@@ -74,7 +74,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                 A Mapping of <br/> <span className="text-slate-400 italic font-serif">Canadian</span> Jurisprudence
             </h1>
             <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto font-light leading-relaxed">
-                Over seventy years of Supreme Court of Canada case law, every decision coded and charted in one interactive dashboard.
+                An aggregated retrospective on the Supreme Court of Canada, translating over seventy years of case-law into an interactive dashboard.
             </p>
             
             <div className="pt-8 flex flex-col items-center gap-4">

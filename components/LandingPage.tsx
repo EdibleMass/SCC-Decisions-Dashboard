@@ -121,16 +121,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
                 </h2>
                 <div className="h-1 w-20 bg-scc-gold mb-6"></div>
                 <p className="text-sm font-mono text-gray-500 uppercase tracking-wide">
-                    The Problem
+                    The Problem Space
                 </p>
             </div>
             <div className="md:w-2/3 prose prose-lg text-slate-600 leading-relaxed font-serif">
                 <p>
-                    <span className="float-left text-7xl font-bold text-slate-900 mr-4 mt-[-10px] font-serif">T</span>
-                    he Supreme Court of Canada shapes Canadian law, but it has decided thousands of cases since 1954 and no one can hold that many judgments in their head. Reading them one at a time tells you what each case decided. It won't show you how the judges' leanings shifted over the decades.
+                    <span className="float-left text-7xl font-bold text-slate-900 mr-4 mt-[-10px] font-serif">W</span>
+                    hile the Supreme Court shapes the legal landscape, the history of its decisions remains obscured by the sheer volume of text and decisions rendered. Thousands of cases and shifting judicial ideologies are difficult to parse through individual review alone.
                 </p>
                 <p>
-                    For legal scholars and researchers, that is a problem of scale. Seeing the big shifts means moving from close reading to computational distance: counting who sided with whom, and who won. This dashboard does the counting for you and maps the invisible topology of the law.
+                    Legal scholars and researchers face a dilemma of scale. Detecting macro-level shifts requires moving from close reading to computational distance. It requires mapping the invisible topology of the law.
                 </p>
             </div>
         </div>
